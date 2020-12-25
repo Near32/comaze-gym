@@ -1225,3 +1225,17 @@ class CoMazeGymEnv7x7Sparse(CoMazeLocalGymEnv):
             vocab_size=1,
             **kwargs
         )
+
+class CoMazeGymEnv7x7Dense(CoMazeLocalGymEnv):
+    def __init__(self, **kwargs):
+        super().__init__(
+            width=7,
+            height=7,
+            see_through_walls=True,
+            seed=1337,
+            agent_view_size=7,
+            sparse_reward=False,
+            max_sentence_length=1,
+            vocab_size=1,
+            **kwargs
+        )

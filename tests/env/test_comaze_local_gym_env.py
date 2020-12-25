@@ -8,8 +8,8 @@ goup = {'directional_action':2}
 godown = {'directional_action':3}
 
 
-def test_env_level1():    
-    env = gym.make("CoMaze-7x7-Sparse-v0")
+def test_env_level1(reward_scheme):    
+    env = gym.make(f"CoMaze-7x7-{reward_scheme}-v0")
     
     # level : 1
     obs = env.reset()
@@ -72,8 +72,8 @@ def test_env_level1():
     import ipdb; ipdb.set_trace()
     
 
-def test_env_level2():    
-    env = gym.make("CoMaze-7x7-Sparse-v0")
+def test_env_level2(reward_scheme):    
+    env = gym.make(f"CoMaze-7x7-{reward_scheme}-v0")
     env.level = 2
 
     # level : 2
@@ -168,8 +168,8 @@ def test_env_level2():
     
     env.close()    
 
-def test_env_level3():    
-    env = gym.make("CoMaze-7x7-Sparse-v0")
+def test_env_level3(reward_scheme):    
+    env = gym.make(f"CoMaze-7x7-{reward_scheme}-v0")
     env.level = 3
 
     # level : 3
@@ -271,8 +271,8 @@ def test_env_level3():
     
     env.close()    
 
-def test_env_level4():    
-    env = gym.make("CoMaze-7x7-Sparse-v0")
+def test_env_level4(reward_scheme):    
+    env = gym.make(f"CoMaze-7x7-{reward_scheme}-v0")
     env.level = 4
 
     # level : 4
@@ -375,7 +375,10 @@ def test_env_level4():
 
 
 if __name__ == "__main__":
-    #test_env_level1()
-    #test_env_level2()
-    #test_env_level3()
-    test_env_level4()
+    reward_scheme = "Sparse"
+    #test_env_level1(reward_scheme)
+    reward_scheme = "Dense"
+    test_env_level1(reward_scheme)
+    #test_env_level2(reward_scheme)
+    #test_env_level3(reward_scheme)
+    #test_env_level4(reward_scheme)
