@@ -1,6 +1,6 @@
 import gym_minigrid
 from gym_minigrid.minigrid import *
-from comaze.env import CommunicationChannel
+from comaze_gym.env import CommunicationChannel
 from gym import spaces 
 import copy
 import numpy as np
@@ -638,6 +638,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         max_sentence_length=1,
         vocab_size=1,
     ):  
+        self.rotatable_view = False
         self.level = 1 
         self.nbr_players = 2
 
@@ -724,9 +725,10 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         self.seed(seed=seed)
 
         # Initialize the state
-        self.reset()
+        self.reset(level=0)
 
-    def reset(self):
+    def reset(self, level=1):
+        self.level = level
         self.done = False 
 
         # Current position and direction of the agent
@@ -734,7 +736,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         self.agent_dir = None
 
         self.nbr_reached_goals = 0
-        self.goal_reached = False 
+        self.new_goal_reached = False 
 
         # Generate a new random grid at the start of each episode
         # To keep the same grid for each episode, call env.seed() with
@@ -857,8 +859,9 @@ class CoMazeLocalGymEnv(MiniGridEnv):
 
         grid = self.grid.slice(topX, topY, self.agent_view_size, self.agent_view_size)
 
-        for i in range(self.agent_dir + 1):
-            grid = grid.rotate_left()
+        if self.rotatable_view:
+            for i in range(self.agent_dir + 1):
+                grid = grid.rotate_left()
 
         # Process occluders and visibility
         # Note that this incurs some performance cost
@@ -1074,17 +1077,17 @@ class CoMazeLocalGymEnv(MiniGridEnv):
                 if fwd_cell == None or fwd_cell.can_overlap():
                     self.agent_pos = fwd_pos
 
-                # Have we reached a goal?
-                if fwd_cell != None and 'goal' in fwd_cell.type:
-                    self.goal_reached = True
-                    # Record the newly reached goal:
+                # Have we reached a new goal?
+                if fwd_cell != None and 'goal' in fwd_cell.type \
+                and fwd_cell.type not in self.reached_goals:
+                    self.new_goal_reached = True
+                    # Record the recently reached new goal:
                     if fwd_cell.type not in self.reached_goals:
                         self.reached_goals.append(fwd_cell.type)
 
                 # Have we reached a time bonus?
                 if fwd_cell != None and 'time_bonus' in fwd_cell.type:
                     self.max_steps += 20
-                    # TODO: maybe modify grid to remove that time_bonus?
             else:
                 # silent failure when the directional action is not executable due to a CoMazeWall.
                 #print("silent failure when the directional action is not executable.")
@@ -1095,7 +1098,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
             if fwd_cell != None and fwd_cell.type == 'lava':
                 self.done = True
             # Has any any secret goal rule been breached:
-            if self.goal_reached and self._secret_goal_rule_breached():
+            if self.new_goal_reached and self._secret_goal_rule_breached():
                 self.done = True
         if self.step_count >= self.max_steps:
             self.done = True
@@ -1108,8 +1111,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         # if all goals have been reached:
         if self.nbr_reached_goals==4:
             if self.level<4:
-                self.level += 1
-                obs = self.reset()
+                obs = self.reset(level=self.level+1)
             else:
                 self.done = True
                 obs = self.gen_obs()
@@ -1131,7 +1133,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
 
     def _reward(self):
         reward = 0
-        if self.goal_reached:
+        if self.new_goal_reached:
             self.nbr_reached_goals += 1
 
         if self.sparse_reward:
@@ -1141,14 +1143,14 @@ class CoMazeLocalGymEnv(MiniGridEnv):
                 reward = -1
     
         if not self.sparse_reward:
-            if self.goal_reached:
+            if self.new_goal_reached:
                 reward += 1
             else:
                 reward -= 0.1
 
         # Bookkeeping:
-        if self.goal_reached:
-            self.goal_reached = False 
+        if self.new_goal_reached:
+            self.new_goal_reached = False 
             
         return reward 
 
