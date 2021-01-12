@@ -636,7 +636,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         agent_view_size=7,
         sparse_reward=False,
         max_sentence_length=1,
-        vocab_size=1,
+        vocab_size=10,
     ):  
         self.rotatable_view = False
         self.level = 1 
@@ -689,7 +689,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         )
         self.communication_channel_observation_space = copy.deepcopy(self.communication_channel_action_space)
 
-        self.available_directional_actions_observation_space = spaces.MultiBinary(n=4)
+        self.available_directional_actions_observation_space = spaces.MultiBinary(n=5) #4 direction and skip
 
         # 4 possible goals:
         #  earlierGoal and laterGoal are encoded as a MultiBinary(n=4*2), 
@@ -703,8 +703,8 @@ class CoMazeLocalGymEnv(MiniGridEnv):
             'available_directional_actions': self.available_directional_actions_observation_space,
             'secret_goal_rule': self.secret_goal_rule_observation_space,
         })
-        # 2 players:
-        self.observation_space = spaces.Tuple([self.observation_space for _ in range(self.nbr_players)])
+        # 2 players: unnecessary...
+        #self.observation_space = spaces.Tuple([self.observation_space for _ in range(self.nbr_players)])
 
         # Range of possible rewards
         self.reward_range = (0, 1)
@@ -773,9 +773,12 @@ class CoMazeLocalGymEnv(MiniGridEnv):
             size=(self.nbr_players, nb_actions_per_player),
             replace=False
         )
+        skip_action = np.asarray([[4]])
         for player_idx in range(self.nbr_players):
-            self.available_directional_actions.append(availableDirectionalActions[player_idx])
-
+            ada = availableDirectionalActions[player_idx:player_idx+1] #shape 1 x nb_actions_per_player
+            # adding skip:
+            ada = np.concatenate([ada, skip_action], axis=-1)
+            self.available_directional_actions.append(ada)
 
         # Reached goals:
         self.reached_goals = list()
@@ -793,20 +796,28 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         self.step_count = 0
 
         # Communication channel:
-        self.communication_channel_content = np.zeros(self.max_sentence_length)
+        self.communication_channel_content = np.zeros((1, self.max_sentence_length))
 
-        self.current_player = 0
+
+        #self.current_player = 0
+        self.current_player = np.random.choice(list(range(self.nbr_players)))
 
         # Return first observation
         obs = self.gen_obs()
-        return obs
+
+        info = {
+            'current_player': self.current_player,
+        }
+
+        return obs, [info for _ in range(self.nbr_players)]
 
     def _regularise_communication_channel(self, communication_channel_output):
         # Regularise the use of EoS symbol:
         make_eos = False
-        for idx, o in enumerate(communication_channel_output):
+        # batch dim=1 x max_sentence_length...
+        for idx, o in enumerate(communication_channel_output[0]):
             if make_eos:    
-                communication_channel_output[idx] = 0
+                communication_channel_output[0, idx] = 0
                 continue
             if o==0:
                 make_eos = True
@@ -850,6 +861,8 @@ class CoMazeLocalGymEnv(MiniGridEnv):
 
     def gen_obs_grid(self):
         """
+        Deprecated for full-observability...
+
         Generate the sub-grid observed by the agent.
         This method also outputs a visibility mask telling us which grid
         cells the agent can actually see.
@@ -886,10 +899,14 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         Generate the agent's view (partially observable, low-resolution encoding)
         """
 
+        """
+        # Deprecated for full observability:
         grid, vis_mask = self.gen_obs_grid()
 
         # Encode the partially observable view into a numpy array
         image = grid.encode(vis_mask)
+        """
+        image = self.grid.encode()
 
         # Observations are dictionaries containing:
         # -an encoding of the grid,
@@ -1032,15 +1049,16 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         assert self.done==False, "Please reset this environment, it has terminated."
 
         directional_action = action.get("directional_action", 4) #skip if not there...        
-        communication_channel_output = action.get("communication_channel", np.zeros(self.max_sentence_length, dtype=np.int64))
-        
+        communication_channel_output = action.get("communication_channel", np.zeros(shape=(1, self.max_sentence_length), dtype=np.int64))
+
         # Communication Channel:
         reg_communication_channel_output = self._regularise_communication_channel(communication_channel_output=communication_channel_output)
         self.communication_channel_content = reg_communication_channel_output
 
         # Directional action:
         directional_move = True
-        if directional_action not in self.available_directional_actions[self.current_player]:
+        if directional_action not in self.available_directional_actions[self.current_player]\
+         or directional_action==self.directional_actions.skip:
             directional_move = False
         
         if directional_move:
@@ -1129,7 +1147,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
             'current_player': self.current_player,
         }
         
-        return obs, reward_vector, self.done, info
+        return obs, reward_vector, self.done, [info for _ in range(self.nbr_players)]
 
     def _reward(self):
         reward = 0
@@ -1224,7 +1242,7 @@ class CoMazeGymEnv7x7Sparse(CoMazeLocalGymEnv):
             agent_view_size=7,
             sparse_reward=True,
             max_sentence_length=1,
-            vocab_size=1,
+            vocab_size=10,
             **kwargs
         )
 
@@ -1238,6 +1256,6 @@ class CoMazeGymEnv7x7Dense(CoMazeLocalGymEnv):
             agent_view_size=7,
             sparse_reward=False,
             max_sentence_length=1,
-            vocab_size=1,
+            vocab_size=10,
             **kwargs
         )
