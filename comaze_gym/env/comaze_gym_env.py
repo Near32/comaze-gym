@@ -361,6 +361,11 @@ class GreenGoal(CoMazeGoal):
 
 
 class CoMazeGrid(Grid):
+    def is_inside(self, i, j):
+        xcond = i >= 0 and i < self.width
+        ycond = j >= 0 and j < self.height
+        return xcond and ycond
+
     def wall_rect(self, x, y, w, h):
         self.horz_wall(x, y, w, obj_type=WallUp)
         self.horz_wall(x, y+h-1, w, obj_type=WallDown)
@@ -635,10 +640,13 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         seed=1337,
         agent_view_size=7,
         sparse_reward=False,
+        with_penalty=True,
         max_sentence_length=1,
         vocab_size=10,
     ):  
         self.rotatable_view = False
+        self.with_penalty = with_penalty
+
         self.level = 1 
         self.nbr_players = 2
 
@@ -754,15 +762,15 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         # Secret Goal Rules:
         self.secret_goal_rules = list()
         for player_idx in range(self.nbr_players):
-            secretGoalRule = np.zeros(8)
+            secretGoalRule = np.zeros((1, 8))
             if self.level>=4:
                 earlierLaterGoals = np.random.choice(
                     a=np.arange(4), 
                     size=2,
                     replace=False,
                 )
-                secretGoalRule[earlierLaterGoals[0]] = 1
-                secretGoalRule[4+earlierLaterGoals[1]] = 1
+                secretGoalRule[0, earlierLaterGoals[0]] = 1
+                secretGoalRule[0, 4+earlierLaterGoals[1]] = 1
             self.secret_goal_rules.append(secretGoalRule)
 
         # Available directional actions:
@@ -1032,9 +1040,9 @@ class CoMazeLocalGymEnv(MiniGridEnv):
             for reachedGoal in self.reached_goals
         ]
         for player_idx, secretGoalRule in enumerate(self.secret_goal_rules):
-            if secretGoalRule is np.zeros(8):   continue
-            earlierGoal = secretGoalRule[:4].argmax(axis=0)
-            laterGoal = secretGoalRule[4:].argmax(axis=0) 
+            if secretGoalRule.sum()==0:   continue
+            earlierGoal = secretGoalRule[0, :4].argmax(axis=0)
+            laterGoal = secretGoalRule[0, 4:].argmax(axis=0) 
             if laterGoal in reached_goalsIds:
                 if earlierGoal not in reached_goalsIds:
                     breached = True 
@@ -1083,33 +1091,44 @@ class CoMazeLocalGymEnv(MiniGridEnv):
             # the forward position using the agent_dir value
             # that has just been set, above: 
             fwd_pos = self.front_pos
-            # Get the contents of the cell in front of the agent
-            fwd_cell = self.grid.get(*fwd_pos)
-            # Get the content of the cell where the agent is:
-            current_cell = self.grid.get(*self.agent_pos)
-            
-            # ... check that there is no wall in the forward direction...
-            if self._can_go_through(cell=current_cell, direction=self.agent_dir) \
-            and self._can_enter_from(cell=fwd_cell, direction=self.agent_dir):
-                # ... move forward
-                if fwd_cell == None or fwd_cell.can_overlap():
-                    self.agent_pos = fwd_pos
 
-                # Have we reached a new goal?
-                if fwd_cell != None and 'goal' in fwd_cell.type \
-                and fwd_cell.type not in self.reached_goals:
-                    self.new_goal_reached = True
-                    # Record the recently reached new goal:
-                    if fwd_cell.type not in self.reached_goals:
-                        self.reached_goals.append(fwd_cell.type)
+            #If fwd_pos is no longer inside the grid:
+            if self.grid.is_inside(*fwd_pos):
+                # Get the contents of the cell in front of the agent
+                fwd_cell = self.grid.get(*fwd_pos)
+                # Get the content of the cell where the agent is:
+                current_cell = self.grid.get(*self.agent_pos)
+                
+                # ... check that there is no wall in the forward direction...
+                if self._can_go_through(cell=current_cell, direction=self.agent_dir) \
+                and self._can_enter_from(cell=fwd_cell, direction=self.agent_dir):
+                    # ... move forward
+                    if fwd_cell == None or fwd_cell.can_overlap():
+                        self.agent_pos = fwd_pos
 
-                # Have we reached a time bonus?
-                if fwd_cell != None and 'time_bonus' in fwd_cell.type:
-                    self.max_steps += 20
+                    # Have we reached a new goal?
+                    if fwd_cell != None and 'goal' in fwd_cell.type \
+                    and fwd_cell.type not in self.reached_goals:
+                        self.new_goal_reached = True
+                        # Make the reached new goal grey:
+                        fwd_cell.color = 'grey'
+                        #since it is a reference, no need for the following:
+                        #self.grid.set(*fwd_pos, fwd_cell)
+                        # Record the recently reached new goal:
+                        if fwd_cell.type not in self.reached_goals:
+                            self.reached_goals.append(fwd_cell.type)
+
+                    # Have we reached a time bonus?
+                    if fwd_cell != None and 'time_bonus' in fwd_cell.type:
+                        self.max_steps += 20
+                else:
+                    # silent failure when the directional action is not executable due to a CoMazeWall.
+                    #print("silent failure when the directional action is not executable.")
+                    pass
             else:
-                # silent failure when the directional action is not executable due to a CoMazeWall.
-                #print("silent failure when the directional action is not executable.")
-                pass
+                # failure when the directional action is not executable due to a the fwd pos being 
+                # outside of the grid.
+                directional_move = False 
 
         # Can the game still carry on?
         if directional_move:
@@ -1163,8 +1182,10 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         if not self.sparse_reward:
             if self.new_goal_reached:
                 reward += 1
-            else:
+            elif self.with_penalty:
                 reward -= 0.1
+            else:
+                pass
 
         # Bookkeeping:
         if self.new_goal_reached:
@@ -1241,6 +1262,7 @@ class CoMazeGymEnv7x7Sparse(CoMazeLocalGymEnv):
             seed=1337,
             agent_view_size=7,
             sparse_reward=True,
+            with_penalty=False,
             max_sentence_length=1,
             vocab_size=10,
             **kwargs
@@ -1255,6 +1277,22 @@ class CoMazeGymEnv7x7Dense(CoMazeLocalGymEnv):
             seed=1337,
             agent_view_size=7,
             sparse_reward=False,
+            with_penalty=False,
+            max_sentence_length=1,
+            vocab_size=10,
+            **kwargs
+        )
+
+class CoMazeGymEnv7x7DenseWithPenalty(CoMazeLocalGymEnv):
+    def __init__(self, **kwargs):
+        super().__init__(
+            width=7,
+            height=7,
+            see_through_walls=True,
+            seed=1337,
+            agent_view_size=7,
+            sparse_reward=False,
+            with_penalty=True,
             max_sentence_length=1,
             vocab_size=10,
             **kwargs

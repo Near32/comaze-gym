@@ -4,6 +4,52 @@ import gym
 
 from gym_minigrid.minigrid import *
 
+
+class RGBImgWrapper(gym.Wrapper):
+    """
+    Wrapper to use fully observable RGB image as the only observation output,
+    no language/mission. This can be used to have the agent to solve the
+    gridworld in pixel space.
+    """
+
+    def __init__(self, env, tile_size=8):
+        super().__init__(env)
+
+        self.tile_size = tile_size
+
+        self.observation_space.spaces['image'] = spaces.Box(
+            low=0,
+            high=255,
+            shape=(self.env.width * tile_size, self.env.height * tile_size, 3),
+            dtype='uint8'
+        )
+
+    def reset(self, **kwargs):
+        observations, infos = self.env.reset(**kwargs)
+        env = self.unwrapped
+        rgb_img = env.render(
+            mode='rgb_array',
+            highlight=False,
+            tile_size=self.tile_size
+        )
+        for player_idx, obs in enumerate(observations):
+            observations[player_idx]["image"] = rgb_img
+
+        return observations, infos
+
+    def step(self, action):
+        next_observations, reward, done, next_infos = self.env.step(action)
+        env = self.unwrapped
+        rgb_img = env.render(
+            mode='rgb_array',
+            highlight=False,
+            tile_size=self.tile_size
+        )
+        for player_idx, obs in enumerate(next_observations):
+            next_observations[player_idx]["image"] = rgb_img
+
+        return next_observations, reward, done, next_infos
+
 class DiscreteCombinedActionWrapper(gym.Wrapper):
     """
     Assumes the :arg env: environment's action space is a Dict that contains 
@@ -66,7 +112,7 @@ class DiscreteCombinedActionWrapper(gym.Wrapper):
         
         self.sentenceId2sentence = sentenceId2sentence
 
-    def _make_infos(self, observations):
+    def _make_infos(self, observations, infos):
         self.infos = []
 
         # Adapt info's legal_actions:
@@ -86,7 +132,7 @@ class DiscreteCombinedActionWrapper(gym.Wrapper):
             action_mask=np.zeros((1,self.action_space.n))
             np.put(action_mask, ind=legal_moves, v=1)
             
-            info = {}
+            info = infos[player_idx]
             info['action_mask'] = action_mask
             info['legal_actions'] = action_mask
             self.infos.append(info)
@@ -97,11 +143,14 @@ class DiscreteCombinedActionWrapper(gym.Wrapper):
         self.nbr_agent = len(infos)
         self.current_player = infos[0]["current_player"]
         
-        self._make_infos(observations)
+        self._make_infos(observations, infos)
 
         return observations, copy.deepcopy(self.infos) 
 
     def _make_action(self, action):
+        player_on_turn = self.infos[0]["current_player"]
+        action = action[player_on_turn].item()
+
         if not self.action_space.contains(action):
             raise ValueError('action {} is invalid for {}'.format(action, self.action_space))
 
@@ -132,7 +181,7 @@ class DiscreteCombinedActionWrapper(gym.Wrapper):
         self.nbr_agent = len(next_infos)
         self.current_player = next_infos[0]["current_player"]
         
-        self._make_infos(next_observations)
+        self._make_infos(next_observations, next_infos)
 
         return next_observations, reward, done, copy.deepcopy(self.infos)
 
@@ -162,10 +211,9 @@ class MultiBinaryCommunicationChannelWrapper(gym.Wrapper):
         self.action_space = self.env.action_space 
 
     def _make_obs_infos(self, observations, infos):
-        new_communication_channel = np.zeros((1, self.communication_channel_observation_space_size))
-        
         for player_idx in range(len(observations)):        
             token_start = 0
+            new_communication_channel = np.zeros((1, self.communication_channel_observation_space_size))
             for token_idx in observations[player_idx]["communication_channel"]:
                 new_communication_channel[0, int(token_start+token_idx)] = 1
                 token_start += self.vocabulary_size+1
@@ -180,7 +228,7 @@ class MultiBinaryCommunicationChannelWrapper(gym.Wrapper):
         )
         return observations, infos
 
-    def setp(self, action):
+    def step(self, action):
         next_observations, reward, done, next_infos = self.env.step(action)
         next_observations, next_infos = self._make_obs_infos(
             observations=next_observations,
@@ -238,6 +286,7 @@ class ImgObservationWrapper(gym.Wrapper):
         return new_next_observations, reward, done, next_infos
 
 def comaze_wrap(env):
+    env = RGBImgWrapper(env)
     env = DiscreteCombinedActionWrapper(env)
     env = MultiBinaryCommunicationChannelWrapper(env)
     env = ImgObservationWrapper(env)
