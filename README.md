@@ -8,7 +8,7 @@ For an exhaustive description of the game, please refer to [this page](https://m
 
 ## Usage
 
-`gym` must be installed. An Kuhn's poker environment can be created via running inside a `python` interpreter:
+`gym` must be installed. CoMaze environment can be created via running inside a `python` interpreter:
 
 ```python
 >>> import gym
