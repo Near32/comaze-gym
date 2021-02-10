@@ -1,11 +1,9 @@
 import gym
 import comaze_gym
+import numpy as np 
 
-skip = 55
-goleft = {'directional_action':0}
-goright = {'directional_action':1}
-goup = {'directional_action':2}
-godown = {'directional_action':3}
+
+noop = [np.array([55])]*2
 
 
 def test_wrapper(reward_scheme):    
@@ -19,7 +17,7 @@ def test_wrapper(reward_scheme):
     env.render()
 
 
-    obs = env.step(skip)
+    obs = env.step(noop)
 
     """
     obs = env.step(goleft)
