@@ -374,6 +374,109 @@ def test_env_level4(reward_scheme):
     env.close()
 
 
+def test_env_level4_11x11(reward_scheme):    
+    env = gym.make(f"CoMaze-11x11-{reward_scheme}-v0")
+    level = 4
+
+    # level : 4
+    obs = env.reset(level=level)
+    env.render()
+
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    
+    obs = env.step(goup)
+    obs = env.step(goup)
+    obs = env.step(goup)
+    obs = env.step(goup)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
+
+    obs = env.step(goright)
+    obs = env.step(goright)
+    obs = env.step(goright)
+    obs = env.step(goright)
+    
+    # retrieve time bonus:
+    obs = env.step(goup)
+    obs = env.step(goup)
+    obs = env.step(godown)
+    obs = env.step(godown)
+    
+    obs = env.step(goright)
+    obs = env.step(goright)
+    obs = env.step(goright)
+    obs = env.step(goright)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
+
+    obs = env.step(goright)
+    obs = env.step(goright)
+    
+
+    obs = env.step(godown)
+    obs = env.step(godown)
+    obs = env.step(godown)
+    obs = env.step(godown)
+    
+    obs = env.step(godown)
+    obs = env.step(godown)
+    obs = env.step(godown)
+    obs = env.step(godown)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
+
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
+    
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+
+    # check that wall are not traversable:
+    env.render()
+    import ipdb; ipdb.set_trace()
+    
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
+    
+    obs = env.step(godown)
+    obs = env.step(godown)
+
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+
+    env.render()
+    import ipdb; ipdb.set_trace()
+
+    #entering last goal:
+    obs = env.step(goup)
+    env.render()
+    import ipdb; ipdb.set_trace()
+
+    obs = env.step(goup)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
+    
+    env.close()
+
+
 def test_env_grey_goal(reward_scheme):    
     env = gym.make(f"CoMaze-7x7-{reward_scheme}-v0")
     
@@ -441,11 +544,13 @@ def test_env_grey_goal(reward_scheme):
 if __name__ == "__main__":
     reward_scheme = "Sparse"
     #test_env_level1(reward_scheme)
-    reward_scheme = "Dense"
+    #reward_scheme = "Dense"
 
     #test_env_level1(reward_scheme)
     #test_env_level2(reward_scheme)
     #test_env_level3(reward_scheme)
-    test_env_level4(reward_scheme)
+    #test_env_level4(reward_scheme)
 
     #test_env_grey_goal(reward_scheme)
+
+    test_env_level4_11x11(reward_scheme)

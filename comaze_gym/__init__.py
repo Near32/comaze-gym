@@ -19,3 +19,13 @@ register(
     id='CoMaze-7x7-Dense-v0',
     entry_point='comaze_gym.env:CoMazeGymEnv7x7Dense'
 )
+
+register(
+    id='CoMaze-11x11-Sparse-v0',
+    entry_point='comaze_gym.env:CoMazeGymEnv11x11Sparse'
+)
+
+register(
+    id='CoMaze-11x11-Dense-v0',
+    entry_point='comaze_gym.env:CoMazeGymEnv11x11Dense'
+)

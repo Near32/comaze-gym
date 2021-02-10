@@ -851,15 +851,17 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         # Generate the surrounding walls
         self.grid.wall_rect(0, 0, width, height)
 
-        # Place red goal square:
-        self.put_obj(RedGoal(), 1,1)
-        # Place yellow goal square:
-        self.put_obj(YellowGoal(), width-2,1)
-        # Place green goal square:
-        self.put_obj(GreenGoal(), 1,height-2)
-        # Place blue goal square:
-        self.put_obj(BlueGoal(), width-2,height-2)
-
+        if width==7:
+            # Place red goal square:
+            self.put_obj(RedGoal(), 1,1)
+            # Place yellow goal square:
+            self.put_obj(YellowGoal(), width-2,1)
+            # Place green goal square:
+            self.put_obj(GreenGoal(), 1,height-2)
+            # Place blue goal square:
+            self.put_obj(BlueGoal(), width-2,height-2)
+        else:
+            raise NotImplementedError
         """
         if self.level >= 2:
             self.put_obj(WallRight(), 2, 2)
@@ -1284,6 +1286,91 @@ class CoMazeGymEnv7x7Sparse(CoMazeLocalGymEnv):
             seed=1337,
             agent_view_size=7,
             sparse_reward=True,
+            with_penalty=False,
+            max_sentence_length=1,
+            vocab_size=10,
+            **kwargs
+        )
+
+class CoMazeGymEnv11x11Sparse(CoMazeLocalGymEnv):
+    def __init__(self, **kwargs):
+        super().__init__(
+            width=11,
+            height=11,
+            see_through_walls=True,
+            seed=1337,
+            agent_view_size=7,
+            sparse_reward=True,
+            with_penalty=False,
+            max_sentence_length=1,
+            vocab_size=10,
+            **kwargs
+        )
+
+    def _gen_grid(self, width, height):
+        # Create an empty grid
+        self.grid = CoMazeGrid(width, height)
+
+        # Generate the surrounding walls
+        self.grid.wall_rect(0, 0, width, height)
+
+        # Place red goal square:
+        self.put_obj(RedGoal(), 2,2)
+        # Place yellow goal square:
+        self.put_obj(YellowGoal(), width-3,2)
+        # Place green goal square:
+        self.put_obj(GreenGoal(), 2,height-3)
+        # Place blue goal square:
+        self.put_obj(BlueGoal(), width-3,height-3)
+        
+        """
+        if self.level >= 2:
+            self.put_obj(WallRight(), 2, 2)
+            self.put_obj(WallRight(), 2, 4)
+            self.put_obj(WallRight(), 2, 5)
+            self.put_obj(WallRightDown(), 5, 2)
+            self.put_obj(WallRightDown(), 4, 3)
+            self.put_obj(WallDown(), 3, 2)
+        """
+        if self.level >= 2:
+            self.put_obj(Wall(), 3, 3)
+            self.put_obj(Wall(), 3, 5)
+            self.put_obj(Wall(), 3, 6)
+            self.put_obj(Wall(), 6, 3)
+            self.put_obj(Wall(), 5, 4)
+            self.put_obj(Wall(), 4, 3)
+
+            self.put_obj(Wall(), 7, 3)
+            self.put_obj(Wall(), 7, 2)
+            self.put_obj(Wall(), 3, 8)
+            self.put_obj(Wall(), 4, 8)
+
+
+            self.put_obj(Wall(), 8, 9)
+            self.put_obj(Wall(), 7, 8)
+                
+        if self.level >= 3:
+            self.put_obj(TimeBonus(), 5, 0)
+            self.put_obj(TimeBonus(), 5, 10)
+
+
+        # Place the agent
+        if self.agent_start_pos is not None:
+            self.agent_pos = self.agent_start_pos
+            self.agent_dir = self.agent_start_dir
+        else:
+            self.place_agent()
+
+
+class CoMazeGymEnv11x11Dense(CoMazeGymEnv11x11Sparse):
+    def __init__(self, **kwargs):
+        super().__init__(
+            width=11,
+            height=11,
+            see_through_walls=True,
+            seed=1337,
+            agent_view_size=7,
+            sparse_reward=False,
             with_penalty=False,
             max_sentence_length=1,
             vocab_size=10,
