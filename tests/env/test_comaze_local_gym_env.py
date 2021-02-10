@@ -74,10 +74,10 @@ def test_env_level1(reward_scheme):
 
 def test_env_level2(reward_scheme):    
     env = gym.make(f"CoMaze-7x7-{reward_scheme}-v0")
-    env.level = 2
+    level = 2
 
     # level : 2
-    obs = env.reset()
+    obs = env.reset(level=level)
     env.render()
 
     obs = env.step(goleft)
@@ -170,10 +170,10 @@ def test_env_level2(reward_scheme):
 
 def test_env_level3(reward_scheme):    
     env = gym.make(f"CoMaze-7x7-{reward_scheme}-v0")
-    env.level = 3
+    level = 3
 
     # level : 3
-    obs = env.reset()
+    obs = env.reset(level=level)
     env.render()
 
     obs = env.step(goleft)
@@ -273,10 +273,10 @@ def test_env_level3(reward_scheme):
 
 def test_env_level4(reward_scheme):    
     env = gym.make(f"CoMaze-7x7-{reward_scheme}-v0")
-    env.level = 4
+    level = 4
 
     # level : 4
-    obs = env.reset()
+    obs = env.reset(level=level)
     env.render()
 
     obs = env.step(goleft)
@@ -374,7 +374,7 @@ def test_env_level4(reward_scheme):
     env.close()
 
 
-def test_env_white_goal(reward_scheme):    
+def test_env_grey_goal(reward_scheme):    
     env = gym.make(f"CoMaze-7x7-{reward_scheme}-v0")
     
     # level : 1
@@ -446,6 +446,6 @@ if __name__ == "__main__":
     #test_env_level1(reward_scheme)
     #test_env_level2(reward_scheme)
     #test_env_level3(reward_scheme)
-    #test_env_level4(reward_scheme)
+    test_env_level4(reward_scheme)
 
-    test_env_white_goal(reward_scheme)
+    #test_env_grey_goal(reward_scheme)

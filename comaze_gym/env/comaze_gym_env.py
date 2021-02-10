@@ -108,6 +108,7 @@ class WallUp(CoMazeWall):
         x-axis is from left to right.
         y-axis is from top to bottom.
         """
+        #fill_coords(img, point_in_rect(0.25, 0.75, 0, 0.25), COLORS[self.color])
         fill_coords(img, point_in_rect(0, 1, 0, 0.25), COLORS[self.color])
         #fill_coords(img, point_in_rect(0, 1, 0, 1), COLORS[self.color])
 
@@ -136,6 +137,7 @@ class WallDown(CoMazeWall):
         x-axis is from left to right.
         y-axis is from top to bottom.
         """
+        #fill_coords(img, point_in_rect(0.25, 0.75, 0.75, 1), COLORS[self.color])
         fill_coords(img, point_in_rect(0, 1, 0.75, 1), COLORS[self.color])
         #fill_coords(img, point_in_rect(0, 1, 0, 1), COLORS[self.color])
 
@@ -164,6 +166,7 @@ class WallLeft(CoMazeWall):
         x-axis is from left to right.
         y-axis is from top to bottom.
         """
+        #fill_coords(img, point_in_rect(0, 0.25, 0.25, 0.75), COLORS[self.color])
         fill_coords(img, point_in_rect(0, 0.25, 0, 1), COLORS[self.color])
 
 class WallLeftUp(CoMazeWall):
@@ -191,6 +194,8 @@ class WallLeftUp(CoMazeWall):
         x-axis is from left to right.
         y-axis is from top to bottom.
         """
+        #fill_coords(img, point_in_rect(0, 0.25, 0.25, 0.75), COLORS[self.color])
+        #fill_coords(img, point_in_rect(0.25, 0.75, 0, 0.25), COLORS[self.color])
         fill_coords(img, point_in_rect(0, 0.25, 0, 1), COLORS[self.color])
         fill_coords(img, point_in_rect(0, 1, 0, 0.25), COLORS[self.color])
 
@@ -219,6 +224,8 @@ class WallLeftDown(CoMazeWall):
         x-axis is from left to right.
         y-axis is from top to bottom.
         """
+        #fill_coords(img, point_in_rect(0, 0.25, 0.25, 0.75), COLORS[self.color])
+        #fill_coords(img, point_in_rect(0.25, 0.75, 0.75, 1), COLORS[self.color])
         fill_coords(img, point_in_rect(0, 0.25, 0, 1), COLORS[self.color])
         fill_coords(img, point_in_rect(0, 1, 0.75, 1), COLORS[self.color])
 
@@ -247,6 +254,7 @@ class WallRight(CoMazeWall):
         x-axis is from left to right.
         y-axis is from top to bottom.
         """
+        #fill_coords(img, point_in_rect(0.75, 1, 0.25, 0.75), COLORS[self.color])
         fill_coords(img, point_in_rect(0.75, 1, 0, 1), COLORS[self.color])
         #fill_coords(img, point_in_rect(0, 1, 0, 1), COLORS[self.color])
 
@@ -275,6 +283,8 @@ class WallRightUp(CoMazeWall):
         x-axis is from left to right.
         y-axis is from top to bottom.
         """
+        #fill_coords(img, point_in_rect(0.75, 1, 0.25, 0.75), COLORS[self.color])
+        #fill_coords(img, point_in_rect(0.25, 0.75, 0, 0.25), COLORS[self.color])
         fill_coords(img, point_in_rect(0.75, 1, 0, 1), COLORS[self.color])
         fill_coords(img, point_in_rect(0, 1, 0, 0.25), COLORS[self.color])
 
@@ -303,6 +313,8 @@ class WallRightDown(CoMazeWall):
         x-axis is from left to right.
         y-axis is from top to bottom.
         """
+        #fill_coords(img, point_in_rect(0.75, 1, 0.25, 0.75), COLORS[self.color])
+        #fill_coords(img, point_in_rect(0.25, 0.75, 0.75, 1), COLORS[self.color])
         fill_coords(img, point_in_rect(0.75, 1, 0, 1), COLORS[self.color])
         fill_coords(img, point_in_rect(0, 1, 0.75, 1), COLORS[self.color])
         
@@ -848,6 +860,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         # Place blue goal square:
         self.put_obj(BlueGoal(), width-2,height-2)
 
+        """
         if self.level >= 2:
             self.put_obj(WallRight(), 2, 2)
             self.put_obj(WallRight(), 2, 4)
@@ -855,10 +868,19 @@ class CoMazeLocalGymEnv(MiniGridEnv):
             self.put_obj(WallRightDown(), 5, 2)
             self.put_obj(WallRightDown(), 4, 3)
             self.put_obj(WallDown(), 3, 2)
-            
+        """
+        if self.level >= 2:
+            self.put_obj(Wall(), 2, 2)
+            self.put_obj(Wall(), 2, 4)
+            self.put_obj(Wall(), 2, 5)
+            self.put_obj(Wall(), 5, 2)
+            self.put_obj(Wall(), 4, 3)
+            self.put_obj(Wall(), 3, 2)
+                
         if self.level >= 3:
             self.put_obj(TimeBonus(), 3, 0)
             self.put_obj(TimeBonus(), 3, 6)
+
 
         # Place the agent
         if self.agent_start_pos is not None:
