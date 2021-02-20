@@ -70,7 +70,48 @@ def test_env_level1(reward_scheme):
 
     env.render()
     import ipdb; ipdb.set_trace()
+
+def test_env_fixed_actions(reward_scheme):    
+    env = gym.make(f"CoMaze-7x7-{reward_scheme}-FixedActions-v0")
     
+    # level : 1
+    obs = env.reset()
+    env.render()
+
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    
+    obs = env.step(goup)
+    obs = env.step(goup)
+    obs = env.step(goup)
+    obs = env.step(goup)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
+
+
+def test_env_single_player(reward_scheme):    
+    env = gym.make(f"CoMaze-7x7-{reward_scheme}-SinglePlayer-v0")
+    
+    # level : 1
+    obs = env.reset()
+    env.render()
+
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    
+    obs = env.step(goup)
+    obs = env.step(goup)
+    obs = env.step(goup)
+    obs = env.step(goup)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
+
 
 def test_env_level2(reward_scheme):    
     env = gym.make(f"CoMaze-7x7-{reward_scheme}-v0")
@@ -542,9 +583,11 @@ def test_env_grey_goal(reward_scheme):
     
 
 if __name__ == "__main__":
-    reward_scheme = "Sparse"
+    #reward_scheme = "Sparse"
     #test_env_level1(reward_scheme)
-    #reward_scheme = "Dense"
+    reward_scheme = "Dense"
+    test_env_single_player(reward_scheme)
+    #test_env_fixed_actions(reward_scheme)
 
     #test_env_level1(reward_scheme)
     #test_env_level2(reward_scheme)

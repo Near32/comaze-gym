@@ -16,6 +16,7 @@ COLORS = {
     'yellow': np.array([255, 255, 0]),
     'grey'  : np.array([100, 100, 100]),
     'white' : np.array([255, 255, 255]),
+    'black'  : np.array([20, 20, 20]),
 }
 gym_minigrid.minigrid.COLORS = COLORS
 
@@ -31,6 +32,7 @@ COLOR_TO_IDX = {
     'yellow': 4,
     'grey'  : 5,
     'white' : 6,
+    'black' : 7,
 }
 gym_minigrid.minigrid.COLOR_TO_IDX = COLOR_TO_IDX
 
@@ -655,9 +657,13 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         with_penalty=True,
         max_sentence_length=1,
         vocab_size=10,
+        fixed_action_space=False,
+        single_player=False,
     ):  
         self.rotatable_view = False
         self.with_penalty = with_penalty
+        self.fixed_action_space = fixed_action_space
+        self.single_player = single_player
 
         self.level = 1 
         self.nbr_players = 2
@@ -787,18 +793,40 @@ class CoMazeLocalGymEnv(MiniGridEnv):
 
         # Available directional actions:
         self.available_directional_actions = list()
-        nb_actions_per_player = 4 // self.nbr_players
-        availableDirectionalActions = np.random.choice(
-            a=np.arange(4),
-            size=(self.nbr_players, nb_actions_per_player),
-            replace=False
-        )
-        skip_action = np.asarray([[4]])
-        for player_idx in range(self.nbr_players):
-            ada = availableDirectionalActions[player_idx:player_idx+1] #shape 1 x nb_actions_per_player
-            # adding skip:
-            ada = np.concatenate([ada, skip_action], axis=-1)
-            self.available_directional_actions.append(ada)
+        if self.single_player:
+            skip_action = np.asarray([[4]])
+            for player_idx in range(self.nbr_players):
+                if player_idx == 0:
+                    ada = np.reshape(
+                        np.arange(4),
+                        (1, -1),
+                    )
+                    # adding skip:
+                    ada = np.concatenate([ada, skip_action], axis=-1)
+                else:
+                    ada = skip_action    
+                self.available_directional_actions.append(ada)
+            
+        else:
+            nb_actions_per_player = 4 // self.nbr_players
+            if self.fixed_action_space:
+                availableDirectionalActions = np.reshape(
+                    np.arange(4),
+                    (self.nbr_players, nb_actions_per_player),
+                )
+            else:
+                availableDirectionalActions = np.random.choice(
+                    a=np.arange(4),
+                    size=(self.nbr_players, nb_actions_per_player),
+                    replace=False
+                )
+                
+            skip_action = np.asarray([[4]])
+            for player_idx in range(self.nbr_players):
+                ada = availableDirectionalActions[player_idx:player_idx+1] #shape 1 x nb_actions_per_player
+                # adding skip:
+                ada = np.concatenate([ada, skip_action], axis=-1)
+                self.available_directional_actions.append(ada)
 
         # Reached goals:
         self.reached_goals = list()
@@ -819,14 +847,14 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         self.communication_channel_content = np.zeros((1, self.max_sentence_length))
 
 
-        #self.current_player = 0
-        self.current_player = np.random.choice(list(range(self.nbr_players)))
+        self.current_player = 0
+        #self.current_player = np.random.choice(list(range(self.nbr_players)))
 
         # Return first observation
         obs = self.gen_obs()
 
         info = {
-            'current_player': self.current_player,
+            'current_player': np.ones((1,1), dtype=np.int32)*self.current_player,
         }
 
         return obs, [info for _ in range(self.nbr_players)]
@@ -1135,7 +1163,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
                     and fwd_cell.type not in self.reached_goals:
                         self.new_goal_reached = True
                         # Make the reached new goal grey:
-                        fwd_cell.color = 'grey'
+                        fwd_cell.color = 'black'
                         #since it is a reference, no need for the following:
                         #self.grid.set(*fwd_pos, fwd_cell)
                         # Record the recently reached new goal:
@@ -1172,7 +1200,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         # if all goals have been reached:
         if self.nbr_reached_goals==4:
             if self.level<4:
-                obs = self.reset(level=self.level+1)
+                obs, _ = self.reset(level=self.level+1)
             else:
                 self.done = True
                 obs = self.gen_obs()
@@ -1187,7 +1215,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         self.current_player = (self.current_player+1)%self.nbr_players
         
         info = {
-            'current_player': self.current_player,
+            'current_player': np.ones((1,1), dtype=np.int32)*self.current_player,
         }
         
         return obs, reward_vector, self.done, [info for _ in range(self.nbr_players)]
@@ -1364,7 +1392,8 @@ class CoMazeGymEnv11x11Sparse(CoMazeLocalGymEnv):
 
 class CoMazeGymEnv11x11Dense(CoMazeGymEnv11x11Sparse):
     def __init__(self, **kwargs):
-        super().__init__(
+        CoMazeLocalGymEnv.__init__(
+            self,
             width=11,
             height=11,
             see_through_walls=True,
@@ -1389,6 +1418,40 @@ class CoMazeGymEnv7x7Dense(CoMazeLocalGymEnv):
             with_penalty=False,
             max_sentence_length=1,
             vocab_size=10,
+            **kwargs
+        )
+
+class CoMazeGymEnv7x7DenseFixedActions(CoMazeLocalGymEnv):
+    def __init__(self, **kwargs):
+        super().__init__(
+            width=7,
+            height=7,
+            see_through_walls=True,
+            seed=1337,
+            agent_view_size=7,
+            sparse_reward=False,
+            with_penalty=False,
+            max_sentence_length=1,
+            vocab_size=10,
+            fixed_action_space=True,
+            **kwargs
+        )
+
+
+
+class CoMazeGymEnv7x7DenseSinglePlayer(CoMazeLocalGymEnv):
+    def __init__(self, **kwargs):
+        super().__init__(
+            width=7,
+            height=7,
+            see_through_walls=True,
+            seed=1337,
+            agent_view_size=7,
+            sparse_reward=False,
+            with_penalty=False,
+            max_sentence_length=1,
+            vocab_size=10,
+            single_player=True,
             **kwargs
         )
 

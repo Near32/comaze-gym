@@ -122,7 +122,7 @@ class DiscreteCombinedActionWrapper(gym.Wrapper):
             if player_idx==self.current_player:
                 # Everything actually available, except No-op:
                 # as int:
-                available_directional_actions = observations[player_idx]["available_directional_actions"]
+                available_directional_actions = copy.deepcopy(observations[player_idx]["available_directional_actions"])
                 legal_moves = []
                 for directional_action_idx in available_directional_actions[0]:
                     for sidx in range(self.nb_possible_sentences):
@@ -132,7 +132,7 @@ class DiscreteCombinedActionWrapper(gym.Wrapper):
             action_mask=np.zeros((1,self.action_space.n))
             np.put(action_mask, ind=legal_moves, v=1)
             
-            info = infos[player_idx]
+            info = copy.deepcopy(infos[player_idx])
             info['action_mask'] = action_mask
             info['legal_actions'] = action_mask
             self.infos.append(info)
@@ -141,14 +141,14 @@ class DiscreteCombinedActionWrapper(gym.Wrapper):
         observations, infos = self.env.reset(**kwargs)
         
         self.nbr_agent = len(infos)
-        self.current_player = infos[0]["current_player"]
+        self.current_player = infos[0]["current_player"].item()
         
         self._make_infos(observations, infos)
 
         return observations, copy.deepcopy(self.infos) 
 
     def _make_action(self, action):
-        player_on_turn = self.infos[0]["current_player"]
+        player_on_turn = self.infos[0]["current_player"].item()
         action = action[player_on_turn].item()
 
         if not self.action_space.contains(action):
@@ -179,7 +179,7 @@ class DiscreteCombinedActionWrapper(gym.Wrapper):
         next_observations, reward, done, next_infos = self.env.step(original_action)
 
         self.nbr_agent = len(next_infos)
-        self.current_player = next_infos[0]["current_player"]
+        self.current_player = next_infos[0]["current_player"].item()
         
         self._make_infos(next_observations, next_infos)
 

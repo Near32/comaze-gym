@@ -21,6 +21,16 @@ register(
 )
 
 register(
+    id='CoMaze-7x7-Dense-FixedActions-v0',
+    entry_point='comaze_gym.env:CoMazeGymEnv7x7DenseFixedActions'
+)
+
+register(
+    id='CoMaze-7x7-Dense-SinglePlayer-v0',
+    entry_point='comaze_gym.env:CoMazeGymEnv7x7DenseSinglePlayer'
+)
+
+register(
     id='CoMaze-11x11-Sparse-v0',
     entry_point='comaze_gym.env:CoMazeGymEnv11x11Sparse'
 )
