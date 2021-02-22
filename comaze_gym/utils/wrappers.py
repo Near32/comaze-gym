@@ -285,6 +285,14 @@ class ImgObservationWrapper(gym.Wrapper):
         
         return new_next_observations, reward, done, next_infos
 
+    def render(self, mode='human', **kwargs):
+        env = self.unwrapped
+        return env.render(
+            mode=mode,
+            **kwargs,
+        )
+        
+
 def comaze_wrap(env):
     env = RGBImgWrapper(env)
     env = DiscreteCombinedActionWrapper(env)

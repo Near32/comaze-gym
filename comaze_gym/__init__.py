@@ -31,6 +31,11 @@ register(
 )
 
 register(
+    id='CoMaze-7x7-Dense-Easy-SinglePlayer-v0',
+    entry_point='comaze_gym.env:CoMazeGymEnv7x7DenseEasySinglePlayer'
+)
+
+register(
     id='CoMaze-11x11-Sparse-v0',
     entry_point='comaze_gym.env:CoMazeGymEnv11x11Sparse'
 )

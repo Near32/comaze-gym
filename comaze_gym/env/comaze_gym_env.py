@@ -4,6 +4,7 @@ from comaze_gym.env import CommunicationChannel
 from gym import spaces 
 import copy
 import numpy as np
+import cv2
 
 DEBUG = True
 
@@ -637,6 +638,12 @@ class CoMazeGrid(Grid):
 class CoMazeLocalGymEnv(MiniGridEnv):
     """
     """
+
+    metadata = {
+        'render.modes': ['human_comm', 'human', 'rgb_array'],
+        'video.frames_per_second' : 2
+    }
+
     # Enumeration of possible actions
     class Actions(IntEnum):
         # Move left, move right, move up, move down, skip
@@ -659,11 +666,13 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         vocab_size=10,
         fixed_action_space=False,
         single_player=False,
+        timestep_increment=20,
     ):  
         self.rotatable_view = False
         self.with_penalty = with_penalty
         self.fixed_action_space = fixed_action_space
         self.single_player = single_player
+        self.timestep_increment = timestep_increment
 
         self.level = 1 
         self.nbr_players = 2
@@ -837,6 +846,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         self.carrying = None
 
         if self.level >= 3:
+            # not enough time to go through all the goals, need to get time-bonuses:
             self.max_steps = 30
         else:
             self.max_steps = 100
@@ -845,6 +855,8 @@ class CoMazeLocalGymEnv(MiniGridEnv):
 
         # Communication channel:
         self.communication_channel_content = np.zeros((1, self.max_sentence_length))
+        if self.level==1:
+            self.communication_history = ['START']
 
 
         self.current_player = 0
@@ -910,6 +922,8 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         if self.level >= 3:
             self.put_obj(TimeBonus(), 3, 0)
             self.put_obj(TimeBonus(), 3, 6)
+            self.put_obj(TimeBonus(), 0, 3)
+            self.put_obj(TimeBonus(), 6, 3)
 
 
         # Place the agent
@@ -1114,6 +1128,8 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         # Communication Channel:
         reg_communication_channel_output = self._regularise_communication_channel(communication_channel_output=communication_channel_output)
         self.communication_channel_content = reg_communication_channel_output
+        if not hasattr(self, 'communication_history'):  self.communication_history = ['START']
+        self.communication_history.append(f"P{self.current_player+1}:{self.communication_channel_content[0]}")
 
         # Directional action:
         directional_move = True
@@ -1172,7 +1188,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
 
                     # Have we reached a time bonus?
                     if fwd_cell != None and 'time_bonus' in fwd_cell.type:
-                        self.max_steps += 20
+                        self.max_steps += self.timestep_increment
                 else:
                     # silent failure when the directional action is not executable due to a CoMazeWall.
                     #print("silent failure when the directional action is not executable.")
@@ -1301,6 +1317,58 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         if mode == 'human':
             self.window.show_img(img)
             self.window.set_caption(f"Communication Channel: {self.communication_channel_content}")
+        elif mode == 'human_comm':
+            img = np.concatenate([img, np.zeros_like(img)], axis=1)
+            orig_x = img.shape[0]
+            orig_y = img.shape[1]
+            
+            y_inc = (orig_y-20)//8
+            for idx in range(4):
+                comm = ''
+                for commidx in range(2):
+                    if 2*idx+commidx+1>=len(self.communication_history): 
+                        break
+                    comm += ' ' + self.communication_history[-(2*idx+commidx+1)]
+                position = (orig_x//2+120, 30+y_inc*idx)
+                cv2.putText(
+                    img,
+                    comm,
+                    position, #position at which writing has to start
+                    cv2.FONT_HERSHEY_SIMPLEX, #font family
+                    0.5, #font size
+                    (20, 20, 255, 255), #font color
+                    2,  #stroke
+                )
+                if idx>=len(self.communication_history):
+                    break
+            """
+            comm = ''
+            for idx in range(8):
+                comm += ' ' + self.communication_history[-(idx+1)]
+                if idx%2:
+                    comm += '\n'
+                if idx+1>=len(self.communication_history):
+                    break
+
+            position = (orig_x//2+80, 30)
+            cv2.putText(
+                img,
+                comm,
+                position, #position at which writing has to start
+                cv2.FONT_HERSHEY_SIMPLEX, #font family
+                0.5, #font size
+                (20, 20, 255, 255), #font color
+                2,  #stroke
+            )
+            """
+            
+            """
+            import matplotlib.pyplot as plt
+            plt.imshow(img)
+            plt.show()
+            plt.savefig('test2.png')
+            import ipdb; ipdb.set_trace()
+            """             
 
         return img
 
@@ -1438,6 +1506,22 @@ class CoMazeGymEnv7x7DenseFixedActions(CoMazeLocalGymEnv):
         )
 
 
+class CoMazeGymEnv7x7DenseEasySinglePlayer(CoMazeLocalGymEnv):
+    def __init__(self, **kwargs):
+        super().__init__(
+            width=7,
+            height=7,
+            see_through_walls=True,
+            seed=1337,
+            agent_view_size=7,
+            sparse_reward=False,
+            with_penalty=False,
+            max_sentence_length=1,
+            vocab_size=10,
+            single_player=True,
+            timestep_increment=100,
+            **kwargs
+        )
 
 class CoMazeGymEnv7x7DenseSinglePlayer(CoMazeLocalGymEnv):
     def __init__(self, **kwargs):

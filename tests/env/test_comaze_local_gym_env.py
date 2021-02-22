@@ -112,7 +112,235 @@ def test_env_single_player(reward_scheme):
     env.render()
     import ipdb; ipdb.set_trace()
 
+    obs = env.step(goright)
+    obs = env.step(goright)
+    obs = env.step(goright)
+    obs = env.step(goright)
+    
+    obs = env.step(goright)
+    obs = env.step(goright)
+    obs = env.step(goright)
+    obs = env.step(goright)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
 
+    obs = env.step(godown)
+    obs = env.step(godown)
+    obs = env.step(godown)
+    obs = env.step(godown)
+    
+    obs = env.step(godown)
+    obs = env.step(godown)
+    obs = env.step(godown)
+    obs = env.step(godown)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
+    
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
+        
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+
+    env.render()
+    import ipdb; ipdb.set_trace()
+
+    #level 2:
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    
+    obs = env.step(goup)
+    obs = env.step(goup)
+    obs = env.step(goup)
+    obs = env.step(goup)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
+
+    obs = env.step(goright)
+    obs = env.step(goright)
+    obs = env.step(goright)
+    obs = env.step(goright)
+    
+    obs = env.step(goright)
+    obs = env.step(goright)
+    obs = env.step(goright)
+    obs = env.step(goright)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
+
+    obs = env.step(goright)
+    obs = env.step(goright)
+    
+
+    obs = env.step(godown)
+    obs = env.step(godown)
+    obs = env.step(godown)
+    obs = env.step(godown)
+    
+    obs = env.step(godown)
+    obs = env.step(godown)
+    obs = env.step(godown)
+    obs = env.step(godown)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
+
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
+    
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+
+    # check that wall are not traversable:
+    env.render()
+    import ipdb; ipdb.set_trace()
+    
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
+    
+    obs = env.step(godown)
+    obs = env.step(godown)
+
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+
+    env.render()
+    import ipdb; ipdb.set_trace()
+
+    #entering last goal:
+    obs = env.step(goup)
+    env.render()
+    import ipdb; ipdb.set_trace()
+
+    obs = env.step(goup)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
+
+    #level 3:
+    env.render()
+
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    
+    obs = env.step(goup)
+    obs = env.step(goup)
+    obs = env.step(goup)
+    obs = env.step(goup)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
+
+    obs = env.step(goright)
+    obs = env.step(goright)
+    obs = env.step(goright)
+    obs = env.step(goright)
+    
+    # retrieve time bonus:
+    import ipdb; ipdb.set_trace()
+    obs = env.step(goup)
+    import ipdb; ipdb.set_trace()
+    obs = env.step(goup)
+    obs = env.step(godown)
+    obs = env.step(godown)
+    
+
+    obs = env.step(goright)
+    obs = env.step(goright)
+    obs = env.step(goright)
+    obs = env.step(goright)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
+
+    obs = env.step(goright)
+    obs = env.step(goright)
+    
+
+    obs = env.step(godown)
+    obs = env.step(godown)
+    obs = env.step(godown)
+    obs = env.step(godown)
+    
+    obs = env.step(godown)
+    obs = env.step(godown)
+    obs = env.step(godown)
+    obs = env.step(godown)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
+
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
+    
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+
+    # check that wall are not traversable:
+    env.render()
+    import ipdb; ipdb.set_trace()
+    
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
+    
+    obs = env.step(godown)
+    obs = env.step(godown)
+
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+
+    env.render()
+    import ipdb; ipdb.set_trace()
+
+    #entering last goal:
+    obs = env.step(goup)
+    env.render()
+    import ipdb; ipdb.set_trace()
+
+    obs = env.step(goup)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
+    
+    
 def test_env_level2(reward_scheme):    
     env = gym.make(f"CoMaze-7x7-{reward_scheme}-v0")
     level = 2
@@ -238,6 +466,9 @@ def test_env_level3(reward_scheme):
     # retrieve time bonus:
     obs = env.step(goup)
     obs = env.step(goup)
+    env.render()
+    import ipdb; ipdb.set_trace()
+
     obs = env.step(godown)
     obs = env.step(godown)
     
@@ -258,6 +489,9 @@ def test_env_level3(reward_scheme):
     obs = env.step(godown)
     obs = env.step(godown)
     obs = env.step(godown)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
     
     obs = env.step(godown)
     obs = env.step(godown)
