@@ -21,6 +21,27 @@ register(
 )
 
 register(
+    id='CoMaze-7x7-Dense-Level4-v0',
+    entry_point='comaze_gym.env:CoMazeGymEnv7x7DenseLevel4',
+)
+
+register(
+    id='CoMaze-7x7-Dense-SinglePlayerReward-v0',
+    entry_point='comaze_gym.env:CoMazeGymEnv7x7DenseSinglePlayerReward'
+)
+
+register(
+    id='CoMaze-7x7-Dense-SinglePlayerReward-Level4-v0',
+    entry_point='comaze_gym.env:CoMazeGymEnv7x7DenseSinglePlayerRewardLevel4',
+)
+
+register(
+    id='CoMaze-7x7-Dense-SinglePlayerReward-Level4-FixedSecretGoalRules-v0',
+    entry_point='comaze_gym.env:CoMazeGymEnv7x7DenseSinglePlayerRewardLevel4FixedSecretGoalRules',
+)
+
+
+register(
     id='CoMaze-7x7-Dense-FixedActions-v0',
     entry_point='comaze_gym.env:CoMazeGymEnv7x7DenseFixedActions'
 )

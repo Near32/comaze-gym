@@ -92,6 +92,78 @@ def test_env_fixed_actions(reward_scheme):
     import ipdb; ipdb.set_trace()
 
 
+def test_env_level4_fixed_secrets(reward_scheme):    
+    env = gym.make(f"CoMaze-7x7-{reward_scheme}-SinglePlayerReward-Level4-FixedSecretGoalRules-v0")
+    
+    # level : 4
+    obs = env.reset()
+    env.render()
+
+    import ipdb; ipdb.set_trace()
+
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    
+    obs = env.step(godown)
+    obs = env.step(godown)
+    obs = env.step(godown)
+    obs = env.step(godown)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
+
+    
+    obs = env.step(godown)
+    obs = env.step(godown)
+
+    # retrieve time bonus:
+    obs = env.step(goright)
+    obs = env.step(goright)
+    obs = env.step(goright)
+    obs = env.step(goright)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()    
+
+    # go to blue:
+    obs = env.step(goright)
+    obs = env.step(goright)
+    obs = env.step(goright)
+    obs = env.step(goright)
+    
+    obs = env.step(goup)
+    obs = env.step(goup)
+    
+    env.render()
+    import ipdb; ipdb.set_trace()    
+    
+    # go to yellow:
+    obs = env.step(goright)
+    obs = env.step(goright)
+    
+    obs = env.step(goup)
+    obs = env.step(goup)
+    obs = env.step(goup)
+    obs = env.step(goup)
+    obs = env.step(goup)
+    obs = env.step(goup)
+    obs = env.step(goup)
+    obs = env.step(goup)
+                
+
+    obs = env.step(goleft)
+    obs = env.step(goleft)
+    
+    
+    env.render()
+    import ipdb; ipdb.set_trace()
+    
+    env.close()
+
+
+
 def test_env_single_player(reward_scheme):    
     env = gym.make(f"CoMaze-7x7-{reward_scheme}-SinglePlayer-v0")
     
@@ -492,7 +564,7 @@ def test_env_level3(reward_scheme):
     
     env.render()
     import ipdb; ipdb.set_trace()
-    
+
     obs = env.step(godown)
     obs = env.step(godown)
     obs = env.step(godown)
@@ -820,8 +892,11 @@ if __name__ == "__main__":
     #reward_scheme = "Sparse"
     #test_env_level1(reward_scheme)
     reward_scheme = "Dense"
-    test_env_single_player(reward_scheme)
+    #test_env_single_player(reward_scheme)
     #test_env_fixed_actions(reward_scheme)
+
+
+    test_env_level4_fixed_secrets(reward_scheme)
 
     #test_env_level1(reward_scheme)
     #test_env_level2(reward_scheme)

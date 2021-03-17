@@ -1,8 +1,121 @@
 import copy
 import numpy as np
 import gym
+import cv2 
 
 from gym_minigrid.minigrid import *
+
+class Bijection(object):
+    def __init__(self, env):
+        self.env = env 
+
+        self.vocab_size = self.env.vocab_size
+        self.max_sentence_length = self.env.max_sentence_length
+        
+        shuffledarr = np.arange(start=1,stop=self.vocab_size+1)
+        np.random.shuffle(shuffledarr)
+        self.communication_channel_bijection_decoder = { idx+1: v.item() for idx, v in enumerate(shuffledarr)}
+        self.communication_channel_bijection_decoder[0] = 0 
+        self.communication_channel_bijection_encoder = dict(zip(self.communication_channel_bijection_decoder.values(), self.communication_channel_bijection_decoder.keys()))
+
+        self.direction_action_bijection_decoder = { 
+            "identity": {v: v for v in range(5)},
+            "vertical_mirror": {0:0, 1:1, 2:3, 3:2, 4:4},
+            "vertical_horizontal_mirror": {0:1, 1:0, 2:3, 3:2, 4:4},
+            "horizontal_mirror": {0:1, 1:0, 2:2, 3:3, 4:4},
+        }
+        self.direction_action_bijection_encoder = { 
+            "identity": {v: v for v in range(5)},
+            "horizontal_mirror": dict(
+                zip(
+                    self.direction_action_bijection_decoder["horizontal_mirror"].values(), 
+                    self.direction_action_bijection_decoder["horizontal_mirror"].keys()
+                )
+            ),
+            "vertical_horizontal_mirror": dict(
+                zip(
+                    self.direction_action_bijection_decoder["vertical_horizontal_mirror"].values(), 
+                    self.direction_action_bijection_decoder["vertical_horizontal_mirror"].keys()
+                )
+            ),
+            "vertical_mirror": dict(
+                zip(
+                    self.direction_action_bijection_decoder["vertical_mirror"].values(), 
+                    self.direction_action_bijection_decoder["vertical_mirror"].keys()
+                )
+            ),
+        }
+        self.pixel_obs_bijection_encoder = {
+            "identity": lambda x: x,
+            "vertical_mirror": (lambda x: cv2.flip(x, 0)),
+            "horizontal_mirror": (lambda x: cv2.flip(x, 1)),
+            "vertical_horizontal_mirror": (lambda x: cv2.flip(cv2.flip(x, 1), 0)),
+        }
+        self.bijectionIntToStr = {
+            0:"identity",
+            1:"vertical_mirror",
+            2:"horizontal_mirror",
+            3:"vertical_horizontal_mirror",
+        }
+        self.bijection_str = None
+        # TODO: try with rotational bijections...
+        # TODO: try changing goal's color (see secret goal rule too...)
+
+    def reset(self):
+
+        # Directional Action:
+        bijection_idx = np.random.randint(4)
+        self.bijection_str = self.bijectionIntToStr[bijection_idx]
+        
+        # Communication Channel:
+        shuffledarr = np.arange(start=1,stop=self.vocab_size+1)
+        np.random.shuffle(shuffledarr)
+        self.communication_channel_bijection_decoder = { idx+1: v.item() for idx, v in enumerate(shuffledarr)}
+        self.communication_channel_bijection_decoder[0] = 0 
+        self.communication_channel_bijection_encoder = dict(zip(self.communication_channel_bijection_decoder.values(), self.communication_channel_bijection_decoder.keys()))
+        
+
+    def encode_obs(self, obs):
+        """
+
+        """
+        self.previous_obs = copy.deepcopy(obs)
+
+        image = obs["image"]
+        image = self.pixel_obs_bijection_encoder[self.bijection_str](image)
+        obs["image"] = image
+
+        ada = obs["available_directional_actions"]
+        for adaidx in range(ada.shape[-1]):
+            ada[0, adaidx] = self.direction_action_bijection_encoder[self.bijection_str][ada[0,adaidx]]
+        obs["available_directional_actions"] = ada
+
+        comm = obs["communication_channel"]
+        for idx in range(self.max_sentence_length):
+            comm[idx] = self.communication_channel_bijection_encoder[comm[idx].item()]
+        obs["communication_channel"] = comm
+        
+        return obs
+
+    def decode_action(self, action):
+        """
+        :param Action: Dict that contains the keys:
+            - "directional_action": Int in range [0,4]
+            - "communication_channel": ... 
+        """
+        self.previous_action = copy.deepcopy(action)
+
+        dir_action = action.get("directional_action")
+        dir_action = self.direction_action_bijection_decoder[self.bijection_str][dir_action]
+        action["directional_action"] = dir_action
+
+        # Communication Channel:
+        comm = action.get("communication_channel", np.zeros(shape=(1, self.max_sentence_length), dtype=np.int64))
+        for idx in range(self.max_sentence_length):
+            comm[idx] = self.communication_channel_bijection_decoder[comm[idx].item()]
+        action["communication_channel"] = comm 
+
+        return action
 
 
 class RGBImgWrapper(gym.Wrapper):
@@ -293,8 +406,44 @@ class ImgObservationWrapper(gym.Wrapper):
         )
         
 
-def comaze_wrap(env):
+class OtherPlayWrapper(gym.Wrapper):
+    def __init__(self, env):
+        super(OtherPlayWrapper, self).__init__(env)
+        env = self.unwrapped
+        self.nbr_players = env.nbr_players
+        self.per_player_bijections = [
+            Bijection(env=env)
+            for _ in range(self.nbr_players)
+        ]
+
+    def reset(self, **kwargs):
+        for pidx in range(self.nbr_players):
+            self.per_player_bijections[pidx].reset()
+
+        observations, infos = self.env.reset(**kwargs)
+
+        for pidx in range(self.nbr_players):
+            observations[pidx] = self.per_player_bijections[pidx].encode_obs(observations[pidx])
+
+        return observations, infos
+
+    def step(self, action, **kwargs):
+        current_player = self.env.current_player
+        new_action = self.per_player_bijections[self.current_player].decode_action(action)
+
+        next_obs, reward, done, next_infos = self.env.step(new_action, **kwargs)
+
+        for pidx in range(self.nbr_players):
+            next_obs[pidx] = self.per_player_bijections[pidx].encode_obs(next_obs[pidx])
+
+        return next_obs, reward, done, next_infos
+
+
+def comaze_wrap(env, op=False):
     env = RGBImgWrapper(env)
+    if op:
+        print("Using Other-Play scheme!")
+        env = OtherPlayWrapper(env)
     env = DiscreteCombinedActionWrapper(env)
     env = MultiBinaryCommunicationChannelWrapper(env)
     env = ImgObservationWrapper(env)

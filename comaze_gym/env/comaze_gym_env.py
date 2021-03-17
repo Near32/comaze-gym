@@ -635,6 +635,7 @@ class CoMazeGrid(Grid):
 
         return img
 
+
 class CoMazeLocalGymEnv(MiniGridEnv):
     """
     """
@@ -665,16 +666,33 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         max_sentence_length=1,
         vocab_size=10,
         fixed_action_space=False,
+        fixed_secret_goal_rule=False,
         single_player=False,
         timestep_increment=20,
+        overall_max_steps=400,
+        limit_step=True,
+        joint_reward=True,
+        reset_level=1,
+        secret_goal_rule_breaching_penalty=-1,
+        #secret_goal_rule_breaching_penalty=-1,
     ):  
+        self.joint_reward = joint_reward
+
         self.rotatable_view = False
         self.with_penalty = with_penalty
         self.fixed_action_space = fixed_action_space
+        self.fixed_secret_goal_rule = fixed_secret_goal_rule
+        self.secret_goal_rule_breaching_penalty = secret_goal_rule_breaching_penalty
         self.single_player = single_player
         self.timestep_increment = timestep_increment
+        
+        self.limit_step = limit_step
+        self.overall_max_steps_init = overall_max_steps
+        self.overall_max_steps = overall_max_steps
+        self.step_count = 0
 
         self.level = 1 
+        self.reset_level = reset_level
         self.nbr_players = 2
 
         self.secretgoalEnum2id = {"red":0, "yellow":1, "blue":2, "green":3}
@@ -693,7 +711,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         
         # Actions consist of a dictionnary of two elements:
         # - directional actions that are discrete integer values
-        # - communication channel that consist of ungrounded tokens, represented as integer values.
+        # - communication channel that consist of ungrounded tokdict(zip(self.secretgoalEnum2id.values(), self.secretgoalEnum2id.keys()))ens, represented as integer values.
         self.directional_action_space = spaces.Discrete(len(self.directional_actions))
         self.communication_channel_action_space = CommunicationChannel(
             max_sentence_length=self.max_sentence_length,
@@ -732,11 +750,14 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         #  while the following 4 one-hot encode the laterGoal: 
         self.secret_goal_rule_observation_space = spaces.MultiBinary(n=4*2)
 
+        self.agent_id_observation_space = spaces.MultiBinary(n=self.nbr_players)
+
         self.observation_space = spaces.Dict({
             'image': self.grid_observation_space,
             'communication_channel': self.communication_channel_observation_space,
             'available_directional_actions': self.available_directional_actions_observation_space,
             'secret_goal_rule': self.secret_goal_rule_observation_space,
+            'agent_id': self.agent_id_observation_space,
         })
         # 2 players: unnecessary...
         #self.observation_space = spaces.Tuple([self.observation_space for _ in range(self.nbr_players)])
@@ -760,9 +781,12 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         self.seed(seed=seed)
 
         # Initialize the state
-        self.reset(level=0)
+        self.reset()
 
-    def reset(self, level=1):
+    def reset(self, level=None):
+        if level is None:
+            level =self.reset_level
+
         self.level = level
         self.done = False 
 
@@ -791,11 +815,18 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         for player_idx in range(self.nbr_players):
             secretGoalRule = np.zeros((1, 8))
             if self.level>=4:
-                earlierLaterGoals = np.random.choice(
-                    a=np.arange(4), 
-                    size=2,
-                    replace=False,
-                )
+                if self.fixed_secret_goal_rule:
+                    assert self.nbr_players == 2
+                    if player_idx==0:
+                        earlierLaterGoals = [2,0]
+                    else:
+                        earlierLaterGoals = [3,1]
+                else:
+                    earlierLaterGoals = np.random.choice(
+                        a=np.arange(4), 
+                        size=2,
+                        replace=False,
+                    )
                 secretGoalRule[0, earlierLaterGoals[0]] = 1
                 secretGoalRule[0, 4+earlierLaterGoals[1]] = 1
             self.secret_goal_rules.append(secretGoalRule)
@@ -845,22 +876,34 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         # not used in CoMaze but necessary for retro-compatibility with minigrid...
         self.carrying = None
 
-        if self.level >= 3:
+        if self.level >= 2 and self.level != self.reset_level:
+            self.overall_max_steps -= self.step_count
+        else:
+            self.overall_max_steps = self.overall_max_steps_init
+
+        if self.level!=self.reset_level and self.level >= 3:
             # not enough time to go through all the goals, need to get time-bonuses:
             self.max_steps = 30
         else:
             self.max_steps = 100
+        
         # Step count since episode start
         self.step_count = 0
 
         # Communication channel:
         self.communication_channel_content = np.zeros((1, self.max_sentence_length))
-        if self.level==1:
+        if self.level==self.reset_level:
             self.communication_history = ['START']
 
 
-        self.current_player = 0
-        #self.current_player = np.random.choice(list(range(self.nbr_players)))
+        self.agent_ids = []
+        for pidx in range(self.nbr_players):
+            pidx_ohe = np.zeros((1,self.nbr_players))
+            pidx_ohe[0, pidx] = 1
+            self.agent_ids.append(pidx_ohe)
+
+        #self.current_player = 0
+        self.current_player = np.random.choice(list(range(self.nbr_players)))
 
         # Return first observation
         obs = self.gen_obs()
@@ -991,14 +1034,16 @@ class CoMazeLocalGymEnv(MiniGridEnv):
             'image': image,
             'communication_channel': self.communication_channel_content,
             'available_directional_actions': self.available_directional_actions[0],
-            'secret_goal_rule': self.secret_goal_rules[0]
+            'secret_goal_rule': self.secret_goal_rules[0],
+            'agent_id': self.agent_ids[0],
         }
 
         p2_obs = {
             'image': image,
             'communication_channel': self.communication_channel_content,
             'available_directional_actions': self.available_directional_actions[1],
-            'secret_goal_rule': self.secret_goal_rules[1]
+            'secret_goal_rule': self.secret_goal_rules[1],
+            'agent_id': self.agent_ids[1],
         }
 
         return [p1_obs, p2_obs]
@@ -1109,10 +1154,10 @@ class CoMazeLocalGymEnv(MiniGridEnv):
             if secretGoalRule.sum()==0:   continue
             earlierGoal = secretGoalRule[0, :4].argmax(axis=0)
             laterGoal = secretGoalRule[0, 4:].argmax(axis=0) 
-            if laterGoal in reached_goalsIds:
-                if earlierGoal not in reached_goalsIds:
-                    breached = True 
-                    break
+            if laterGoal in reached_goalsIds \
+            and earlierGoal not in reached_goalsIds:
+                breached = True 
+                break
         self.secret_goal_rule_breached = breached 
         return breached 
 
@@ -1205,13 +1250,17 @@ class CoMazeLocalGymEnv(MiniGridEnv):
             # Has any any secret goal rule been breached:
             if self.new_goal_reached and self._secret_goal_rule_breached():
                 self.done = True
-        if self.step_count >= self.max_steps:
+        if self.step_count >= self.max_steps or (self.limit_step and self.step_count > self.overall_max_steps):
             self.done = True
 
         # Reward computation:
         reward = self._reward()
-        reward_vector = [reward for _ in range(self.nbr_players)]
-
+        if self.joint_reward:
+            reward_vector = [reward for _ in range(self.nbr_players)]
+        else:
+            reward_vector = [0.0 for _ in range(self.nbr_players)]
+            reward_vector[self.current_player] = reward
+        
         # Carry on to the next level 
         # if all goals have been reached:
         if self.nbr_reached_goals==4:
@@ -1254,6 +1303,9 @@ class CoMazeLocalGymEnv(MiniGridEnv):
                 reward -= 0.1
             else:
                 pass
+
+        if self.secret_goal_rule_breached:
+            reward = self.secret_goal_rule_breaching_penalty
 
         # Bookkeeping:
         if self.new_goal_reached:
@@ -1486,6 +1538,77 @@ class CoMazeGymEnv7x7Dense(CoMazeLocalGymEnv):
             with_penalty=False,
             max_sentence_length=1,
             vocab_size=10,
+            **kwargs
+        )
+
+class CoMazeGymEnv7x7DenseSinglePlayerReward(CoMazeLocalGymEnv):
+    def __init__(self, **kwargs):
+        super().__init__(
+            width=7,
+            height=7,
+            see_through_walls=True,
+            seed=1337,
+            agent_view_size=7,
+            sparse_reward=False,
+            with_penalty=False,
+            max_sentence_length=1,
+            vocab_size=10,
+            joint_reward=False,
+            **kwargs
+        )
+
+class CoMazeGymEnv7x7DenseLevel4(CoMazeLocalGymEnv):
+    def __init__(self, **kwargs):
+        super().__init__(
+            width=7,
+            height=7,
+            see_through_walls=True,
+            seed=1337,
+            agent_view_size=7,
+            sparse_reward=False,
+            with_penalty=False,
+            max_sentence_length=1,
+            vocab_size=10,
+            joint_reward=True,
+            reset_level=4,
+            fixed_secret_goal_rule=False,
+            overall_max_steps=100,
+            **kwargs
+        )
+
+class CoMazeGymEnv7x7DenseSinglePlayerRewardLevel4(CoMazeLocalGymEnv):
+    def __init__(self, **kwargs):
+        super().__init__(
+            width=7,
+            height=7,
+            see_through_walls=True,
+            seed=1337,
+            agent_view_size=7,
+            sparse_reward=False,
+            with_penalty=False,
+            max_sentence_length=1,
+            vocab_size=10,
+            joint_reward=False,
+            reset_level=4,
+            fixed_secret_goal_rule=False,
+            **kwargs
+        )
+
+class CoMazeGymEnv7x7DenseSinglePlayerRewardLevel4FixedSecretGoalRules(CoMazeLocalGymEnv):
+    def __init__(self, **kwargs):
+        super().__init__(
+            width=7,
+            height=7,
+            see_through_walls=True,
+            seed=1337,
+            agent_view_size=7,
+            sparse_reward=False,
+            with_penalty=False,
+            max_sentence_length=1,
+            vocab_size=10,
+            joint_reward=False,
+            reset_level=4,
+            fixed_secret_goal_rule=True,
             **kwargs
         )
 
