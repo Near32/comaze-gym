@@ -669,12 +669,14 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         fixed_secret_goal_rule=False,
         single_player=False,
         timestep_increment=20,
-        overall_max_steps=400,
+        overall_max_steps=200, #400
         limit_step=True,
         joint_reward=True,
         reset_level=1,
+        gameover_on_rule_breaching=False,
         secret_goal_rule_breaching_penalty=-1,
         #secret_goal_rule_breaching_penalty=-1,
+        goal_reaching_reward=1,
     ):  
         self.joint_reward = joint_reward
 
@@ -682,6 +684,8 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         self.with_penalty = with_penalty
         self.fixed_action_space = fixed_action_space
         self.fixed_secret_goal_rule = fixed_secret_goal_rule
+        self.gameover_on_rule_breaching = gameover_on_rule_breaching
+        self.goal_reaching_reward = goal_reaching_reward
         self.secret_goal_rule_breaching_penalty = secret_goal_rule_breaching_penalty
         self.single_player = single_player
         self.timestep_increment = timestep_increment
@@ -1153,8 +1157,11 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         for player_idx, secretGoalRule in enumerate(self.secret_goal_rules):
             if secretGoalRule.sum()==0:   continue
             earlierGoal = secretGoalRule[0, :4].argmax(axis=0)
-            laterGoal = secretGoalRule[0, 4:].argmax(axis=0) 
-            if laterGoal in reached_goalsIds \
+            laterGoal = secretGoalRule[0, 4:].argmax(axis=0)
+            # We only care about the latest goal that has been newly reached:
+            # Doing so, we can continue the game without receiving penalties
+            # at every steps. 
+            if laterGoal==reached_goalsIds[-1] \
             and earlierGoal not in reached_goalsIds:
                 breached = True 
                 break
@@ -1174,7 +1181,13 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         reg_communication_channel_output = self._regularise_communication_channel(communication_channel_output=communication_channel_output)
         self.communication_channel_content = reg_communication_channel_output
         if not hasattr(self, 'communication_history'):  self.communication_history = ['START']
-        self.communication_history.append(f"P{self.current_player+1}:{self.communication_channel_content[0]}")
+        message = f"P{self.current_player+1}:"
+        if self.level >= 4:
+            earlierGoal = self.secret_goal_rules[self.current_player][0, :4].argmax(axis=0)
+            laterGoal = self.secret_goal_rules[self.current_player][0, 4:].argmax(axis=0)
+            message += self.id2SecretgoalEnum[earlierGoal][0]+self.id2SecretgoalEnum[laterGoal][0]
+        message += f":{self.communication_channel_content[0]}"
+        self.communication_history.append(message)
 
         # Directional action:
         directional_move = True
@@ -1248,7 +1261,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
             if fwd_cell != None and fwd_cell.type == 'lava':
                 self.done = True
             # Has any any secret goal rule been breached:
-            if self.new_goal_reached and self._secret_goal_rule_breached():
+            if self.new_goal_reached and self._secret_goal_rule_breached() and self.gameover_on_rule_breaching:
                 self.done = True
         if self.step_count >= self.max_steps or (self.limit_step and self.step_count > self.overall_max_steps):
             self.done = True
@@ -1298,14 +1311,16 @@ class CoMazeLocalGymEnv(MiniGridEnv):
     
         if not self.sparse_reward:
             if self.new_goal_reached:
-                reward += 1
+                reward += self.goal_reaching_reward
             elif self.with_penalty:
                 reward -= 0.1
             else:
                 pass
 
         if self.secret_goal_rule_breached:
+            self.secret_goal_rule_breached = False 
             reward = self.secret_goal_rule_breaching_penalty
+
 
         # Bookkeeping:
         if self.new_goal_reached:
@@ -1566,13 +1581,15 @@ class CoMazeGymEnv7x7DenseLevel4(CoMazeLocalGymEnv):
             seed=1337,
             agent_view_size=7,
             sparse_reward=False,
-            with_penalty=False,
+            with_penalty=True, #False,
             max_sentence_length=1,
-            vocab_size=10,
+            vocab_size=3,#10,
             joint_reward=True,
             reset_level=4,
             fixed_secret_goal_rule=False,
-            overall_max_steps=100,
+            overall_max_steps=50,#100,
+            secret_goal_rule_breaching_penalty=0,
+            goal_reaching_reward=5,
             **kwargs
         )
 

@@ -121,7 +121,7 @@ def test_op_wrapper(reward_scheme):
     from comaze_gym.utils import comaze_wrap
     env = gym.make(f"CoMaze-7x7-{reward_scheme}-v0")
     env = comaze_wrap(env, op=True)
-    level = 1
+    level = 4
 
     # level : 1
     obs = env.reset(level=level)
