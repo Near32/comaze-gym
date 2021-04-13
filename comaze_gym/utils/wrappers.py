@@ -6,8 +6,9 @@ import cv2
 from gym_minigrid.minigrid import *
 
 class Bijection(object):
-    def __init__(self, env):
+    def __init__(self, env, vocab_only=True):
         self.env = env 
+        self.vocab_only = vocab_only
 
         self.vocab_size = self.env.vocab_size
         self.max_sentence_length = self.env.max_sentence_length
@@ -65,6 +66,7 @@ class Bijection(object):
 
         # Directional Action:
         bijection_idx = np.random.randint(4)
+        if self.vocab_only: bijection_idx = 0
         self.bijection_str = self.bijectionIntToStr[bijection_idx]
         
         # Communication Channel:

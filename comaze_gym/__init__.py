@@ -26,6 +26,26 @@ register(
 )
 
 register(
+    id='CoMaze-7x7-Dense-Level5-v0',
+    entry_point='comaze_gym.env:CoMazeGymEnv7x7DenseLevel5',
+)
+
+register(
+    id='CoMaze-9x9-Dense-Level5-v0',
+    entry_point='comaze_gym.env:CoMazeGymEnv9x9DenseLevel5',
+)
+
+register(
+    id='CoMaze-9x9-Dense-Level5-EasySecrets-v0',
+    entry_point='comaze_gym.env:CoMazeGymEnv9x9DenseLevel5EasySecrets',
+)
+
+register(
+    id='CoMaze-9x9-Dense-Level5-HardSecrets-v0',
+    entry_point='comaze_gym.env:CoMazeGymEnv9x9DenseLevel5HardSecrets',
+)
+
+register(
     id='CoMaze-7x7-Dense-SinglePlayerReward-v0',
     entry_point='comaze_gym.env:CoMazeGymEnv7x7DenseSinglePlayerReward'
 )

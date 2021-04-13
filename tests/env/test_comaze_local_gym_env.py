@@ -71,6 +71,7 @@ def test_env_level1(reward_scheme):
     env.render()
     import ipdb; ipdb.set_trace()
 
+
 def test_env_fixed_actions(reward_scheme):    
     env = gym.make(f"CoMaze-7x7-{reward_scheme}-FixedActions-v0")
     

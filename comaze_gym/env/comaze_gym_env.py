@@ -5,6 +5,7 @@ from gym import spaces
 import copy
 import numpy as np
 import cv2
+import random
 
 DEBUG = True
 
@@ -675,6 +676,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         reset_level=1,
         gameover_on_rule_breaching=False,
         secret_goal_rule_breaching_penalty=-1,
+        secret_goal_rule_selection="normal",
         #secret_goal_rule_breaching_penalty=-1,
         goal_reaching_reward=1,
     ):  
@@ -684,6 +686,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         self.with_penalty = with_penalty
         self.fixed_action_space = fixed_action_space
         self.fixed_secret_goal_rule = fixed_secret_goal_rule
+        self.secret_goal_rule_selection = secret_goal_rule_selection
         self.gameover_on_rule_breaching = gameover_on_rule_breaching
         self.goal_reaching_reward = goal_reaching_reward
         self.secret_goal_rule_breaching_penalty = secret_goal_rule_breaching_penalty
@@ -699,7 +702,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         self.reset_level = reset_level
         self.nbr_players = 2
 
-        self.secretgoalEnum2id = {"red":0, "yellow":1, "blue":2, "green":3}
+        self.secretgoalEnum2id = {"red_goal":0, "yellow_goal":1, "blue_goal":2, "green_goal":3}
         self.id2SecretgoalEnum = dict(zip(self.secretgoalEnum2id.values(), self.secretgoalEnum2id.keys()))
         
         self.sparse_reward = sparse_reward
@@ -787,6 +790,8 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         # Initialize the state
         self.reset()
 
+
+
     def reset(self, level=None):
         if level is None:
             level =self.reset_level
@@ -816,23 +821,70 @@ class CoMazeLocalGymEnv(MiniGridEnv):
 
         # Secret Goal Rules:
         self.secret_goal_rules = list()
+        conflict = self.level >= 4 
+        while conflict:
+            if self.secret_goal_rule_selection == "hard":
+                # exactly one goal in common 
+                # at different position (earlier vs later):
+                goal_choice_set = set(list(range(4)))
+                commonGoal = np.random.randint(low=0,high=4)
+                goal_choice_set.remove(commonGoal)
+            elif self.secret_goal_rule_selection == "easy":
+                # no goal in common
+                goal_choice_set = set(list(range(4)))
+
+            earlierLaterGoals = []
+            for pidx in range(self.nbr_players):
+                if self.level>=4:
+                    if self.fixed_secret_goal_rule:
+                        assert self.nbr_players == 2
+                        if pidx==0:
+                            earlierLaterGoals.append([2,0])
+                        else:
+                            earlierLaterGoals.append([3,1])
+                    else:
+
+                        if self.secret_goal_rule_selection == "normal":
+                            earlierLaterGoals.append( np.random.choice(
+                                    a=np.arange(4), 
+                                    size=2,
+                                    replace=False,
+                                )
+                            )
+                        elif self.secret_goal_rule_selection == "hard":
+                            assert self.nbr_players == 2 
+                            chosen = random.choice(list(goal_choice_set))
+                            goal_choice_set.remove(chosen) # prevent conflict...
+                            rule = np.zeros(2, dtype=np.int32)
+                            if pidx %2:
+                                rule[0] = commonGoal
+                                rule[1] = chosen 
+                            else:
+                                rule[0] = chosen
+                                rule[1] = commonGoal 
+                            earlierLaterGoals.append(rule)
+                        elif self.secret_goal_rule_selection == "easy":
+                            assert self.nbr_players == 2 
+                            goal1 = random.choice(list(goal_choice_set))
+                            goal_choice_set.remove(goal1)
+                            goal2 = random.choice(list(goal_choice_set))
+                            goal_choice_set.remove(goal2)
+                            rule = np.zeros(2, dtype=np.int32)
+                            rule[0] = goal1
+                            rule[1] = goal2 
+                            earlierLaterGoals.append(rule)
+
+            # is it valid?
+            if self.level >= 4:
+                assert self.nbr_players == 2 
+                conflict = (earlierLaterGoals[pidx][0] == earlierLaterGoals[1-pidx][1]) and  (earlierLaterGoals[pidx][1] == earlierLaterGoals[1-pidx][0])
+
+
         for player_idx in range(self.nbr_players):
             secretGoalRule = np.zeros((1, 8))
             if self.level>=4:
-                if self.fixed_secret_goal_rule:
-                    assert self.nbr_players == 2
-                    if player_idx==0:
-                        earlierLaterGoals = [2,0]
-                    else:
-                        earlierLaterGoals = [3,1]
-                else:
-                    earlierLaterGoals = np.random.choice(
-                        a=np.arange(4), 
-                        size=2,
-                        replace=False,
-                    )
-                secretGoalRule[0, earlierLaterGoals[0]] = 1
-                secretGoalRule[0, 4+earlierLaterGoals[1]] = 1
+                secretGoalRule[0, earlierLaterGoals[player_idx][0]] = 1
+                secretGoalRule[0, 4+earlierLaterGoals[player_idx][1]] = 1
             self.secret_goal_rules.append(secretGoalRule)
 
         # Available directional actions:
@@ -938,17 +990,37 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         # Generate the surrounding walls
         self.grid.wall_rect(0, 0, width, height)
 
-        if width==7:
+        if True: #self.level != 5:
+            # SQUARE:
+            # # Place red goal square:
+            # self.put_obj(RedGoal(), 1,1)
+            # # Place yellow goal square:
+            # self.put_obj(YellowGoal(), width-2,1)
+            # # Place green goal square:
+            # self.put_obj(GreenGoal(), 1,height-2)
+            # # Place blue goal square:
+            # self.put_obj(BlueGoal(), width-2,height-2)
+
+            # PRISM:
             # Place red goal square:
-            self.put_obj(RedGoal(), 1,1)
+            self.put_obj(RedGoal(), 1,height//2)
             # Place yellow goal square:
-            self.put_obj(YellowGoal(), width-2,1)
+            self.put_obj(YellowGoal(), width//2,1)
             # Place green goal square:
-            self.put_obj(GreenGoal(), 1,height-2)
+            self.put_obj(GreenGoal(), width-2,height//2)
             # Place blue goal square:
-            self.put_obj(BlueGoal(), width-2,height-2)
+            self.put_obj(BlueGoal(), width//2,height-2)
+
         else:
-            raise NotImplementedError
+            # Place red goal square:
+            self.put_obj(RedGoal(), 2,2)
+            # Place yellow goal square:
+            self.put_obj(YellowGoal(), width-3,2)
+            # Place green goal square:
+            self.put_obj(GreenGoal(), 2,height-3)
+            # Place blue goal square:
+            self.put_obj(BlueGoal(), width-3,height-3)
+        
         """
         if self.level >= 2:
             self.put_obj(WallRight(), 2, 2)
@@ -958,7 +1030,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
             self.put_obj(WallRightDown(), 4, 3)
             self.put_obj(WallDown(), 3, 2)
         """
-        if self.level >= 2:
+        if self.level >= 2 and self.level != 5:
             self.put_obj(Wall(), 2, 2)
             self.put_obj(Wall(), 2, 4)
             self.put_obj(Wall(), 2, 5)
@@ -966,7 +1038,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
             self.put_obj(Wall(), 4, 3)
             self.put_obj(Wall(), 3, 2)
                 
-        if self.level >= 3:
+        if self.level >= 3 and self.level !=5:
             self.put_obj(TimeBonus(), 3, 0)
             self.put_obj(TimeBonus(), 3, 6)
             self.put_obj(TimeBonus(), 0, 3)
@@ -1149,11 +1221,10 @@ class CoMazeLocalGymEnv(MiniGridEnv):
 
     def _secret_goal_rule_breached(self):
         breached = False
-        reached_goalsIds = [
-            self.secretgoalEnum2id[key] if key in reachedGoal else None
-            for key in self.secretgoalEnum2id
-            for reachedGoal in self.reached_goals
-        ]
+        reached_goalsIds = []
+        for reachedGoal in self.reached_goals:
+            reached_goalsIds.append(self.secretgoalEnum2id[reachedGoal]) 
+
         for player_idx, secretGoalRule in enumerate(self.secret_goal_rules):
             if secretGoalRule.sum()==0:   continue
             earlierGoal = secretGoalRule[0, :4].argmax(axis=0)
@@ -1321,7 +1392,6 @@ class CoMazeLocalGymEnv(MiniGridEnv):
             self.secret_goal_rule_breached = False 
             reward = self.secret_goal_rule_breaching_penalty
 
-
         # Bookkeeping:
         if self.new_goal_reached:
             self.new_goal_reached = False 
@@ -1396,7 +1466,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
                     if 2*idx+commidx+1>=len(self.communication_history): 
                         break
                     comm += ' ' + self.communication_history[-(2*idx+commidx+1)]
-                position = (orig_x//2+120, 30+y_inc*idx)
+                position = (orig_x//2+150, 30+y_inc*idx)
                 cv2.putText(
                     img,
                     comm,
@@ -1583,13 +1653,101 @@ class CoMazeGymEnv7x7DenseLevel4(CoMazeLocalGymEnv):
             sparse_reward=False,
             with_penalty=True, #False,
             max_sentence_length=1,
-            vocab_size=3,#10,
+            vocab_size=3, #20,
             joint_reward=True,
             reset_level=4,
             fixed_secret_goal_rule=False,
             overall_max_steps=50,#100,
-            secret_goal_rule_breaching_penalty=0,
-            goal_reaching_reward=5,
+            secret_goal_rule_breaching_penalty=-1,
+            goal_reaching_reward=1,
+            **kwargs
+        )
+
+
+class CoMazeGymEnv7x7DenseLevel5(CoMazeLocalGymEnv):
+    def __init__(self, **kwargs):
+        super().__init__(
+            width=7,
+            height=7,
+            see_through_walls=True,
+            seed=1337,
+            agent_view_size=7,
+            sparse_reward=False,
+            with_penalty= True, #False,
+            max_sentence_length=1,
+            vocab_size=20, #10,
+            joint_reward=True,
+            reset_level=5,
+            fixed_secret_goal_rule=False,
+            overall_max_steps=50,#100,
+            secret_goal_rule_breaching_penalty=-1,
+            goal_reaching_reward=1,
+            **kwargs
+        )
+
+class CoMazeGymEnv9x9DenseLevel5(CoMazeLocalGymEnv):
+    def __init__(self, **kwargs):
+        super().__init__(
+            width=9,
+            height=9,
+            see_through_walls=True,
+            seed=1337,
+            agent_view_size=7,
+            sparse_reward=False,
+            with_penalty= True, #False,
+            max_sentence_length=1,
+            vocab_size=20, #10,
+            joint_reward=True,
+            reset_level=5,
+            fixed_secret_goal_rule=False,
+            overall_max_steps=100,
+            secret_goal_rule_breaching_penalty=-1,
+            secret_goal_rule_selection="normal",
+            goal_reaching_reward=1,
+            **kwargs
+        )
+
+class CoMazeGymEnv9x9DenseLevel5EasySecrets(CoMazeLocalGymEnv):
+    def __init__(self, **kwargs):
+        super().__init__(
+            width=9,
+            height=9,
+            see_through_walls=True,
+            seed=1337,
+            agent_view_size=7,
+            sparse_reward=False,
+            with_penalty= True, #False,
+            max_sentence_length=1,
+            vocab_size=20, #10,
+            joint_reward=True,
+            reset_level=5,
+            fixed_secret_goal_rule=False,
+            overall_max_steps=100,
+            secret_goal_rule_breaching_penalty=-1,
+            secret_goal_rule_selection="easy",
+            goal_reaching_reward=1,
+            **kwargs
+        )
+
+class CoMazeGymEnv9x9DenseLevel5HardSecrets(CoMazeLocalGymEnv):
+    def __init__(self, **kwargs):
+        super().__init__(
+            width=9,
+            height=9,
+            see_through_walls=True,
+            seed=1337,
+            agent_view_size=7,
+            sparse_reward=False,
+            with_penalty= True, #False,
+            max_sentence_length=1,
+            vocab_size=20, #10,
+            joint_reward=True,
+            reset_level=5,
+            fixed_secret_goal_rule=False,
+            overall_max_steps=100,
+            secret_goal_rule_breaching_penalty=-1,
+            secret_goal_rule_selection="hard",
+            goal_reaching_reward=1,
             **kwargs
         )
 
