@@ -637,6 +637,8 @@ class CoMazeGrid(Grid):
         return img
 
 
+from .comaze import Direction, CoMazeObject, Int2D, Goal, SecretGoalRule, Move
+
 class CoMazeLocalGymEnv(MiniGridEnv):
     """
     """
@@ -676,7 +678,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         reset_level=1,
         gameover_on_rule_breaching=False,
         secret_goal_rule_breaching_penalty=-1,
-        secret_goal_rule_selection="normal",
+        secret_goal_rule_selection="normal", #easy/hard/normal/uniform
         #secret_goal_rule_breaching_penalty=-1,
         goal_reaching_reward=1,
     ):  
@@ -704,7 +706,10 @@ class CoMazeLocalGymEnv(MiniGridEnv):
 
         self.secretgoalEnum2id = {"red_goal":0, "yellow_goal":1, "blue_goal":2, "green_goal":3}
         self.id2SecretgoalEnum = dict(zip(self.secretgoalEnum2id.values(), self.secretgoalEnum2id.keys()))
-        
+        self.secretgoalStr2id = {"RED":0, "YELLOW":1, "BLUE":2, "GREEN":3}
+        self.id2SecretgoalStr = dict(zip(self.secretgoalStr2id.values(), self.secretgoalStr2id.keys()))
+        self.actionId2Str = {0:"LEFT", 1:"RIGHT", 2:"UP", 3:"DOWN", 4:"SKIP"}
+
         self.sparse_reward = sparse_reward
 
         self.agent_start_pos = (width//2, height//2)
@@ -790,8 +795,6 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         # Initialize the state
         self.reset()
 
-
-
     def reset(self, level=None):
         if level is None:
             level =self.reset_level
@@ -820,16 +823,23 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         assert start_cell is None or start_cell.can_overlap()
 
         # Secret Goal Rules:
+        if self.secret_goal_rule_selection == 'uniform':
+            types = ['easy','hard']
+            secret_goal_rule_selection = types[np.random.randint(2)]
+        else:
+            secret_goal_rule_selection = self.secret_goal_rule_selection
+
         self.secret_goal_rules = list()
+        self.secretGoalRuleObjects = []
         conflict = self.level >= 4 
         while conflict:
-            if self.secret_goal_rule_selection == "hard":
+            if secret_goal_rule_selection == "hard":
                 # exactly one goal in common 
                 # at different position (earlier vs later):
                 goal_choice_set = set(list(range(4)))
                 commonGoal = np.random.randint(low=0,high=4)
                 goal_choice_set.remove(commonGoal)
-            elif self.secret_goal_rule_selection == "easy":
+            elif secret_goal_rule_selection == "easy":
                 # no goal in common
                 goal_choice_set = set(list(range(4)))
 
@@ -844,14 +854,14 @@ class CoMazeLocalGymEnv(MiniGridEnv):
                             earlierLaterGoals.append([3,1])
                     else:
 
-                        if self.secret_goal_rule_selection == "normal":
+                        if secret_goal_rule_selection == "normal":
                             earlierLaterGoals.append( np.random.choice(
                                     a=np.arange(4), 
                                     size=2,
                                     replace=False,
                                 )
                             )
-                        elif self.secret_goal_rule_selection == "hard":
+                        elif secret_goal_rule_selection == "hard":
                             assert self.nbr_players == 2 
                             chosen = random.choice(list(goal_choice_set))
                             goal_choice_set.remove(chosen) # prevent conflict...
@@ -863,7 +873,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
                                 rule[0] = chosen
                                 rule[1] = commonGoal 
                             earlierLaterGoals.append(rule)
-                        elif self.secret_goal_rule_selection == "easy":
+                        elif secret_goal_rule_selection == "easy":
                             assert self.nbr_players == 2 
                             goal1 = random.choice(list(goal_choice_set))
                             goal_choice_set.remove(goal1)
@@ -885,6 +895,29 @@ class CoMazeLocalGymEnv(MiniGridEnv):
             if self.level>=4:
                 secretGoalRule[0, earlierLaterGoals[player_idx][0]] = 1
                 secretGoalRule[0, 4+earlierLaterGoals[player_idx][1]] = 1
+
+                eg = earlierLaterGoals[player_idx][0]
+                lg = earlierLaterGoals[player_idx][1]
+                eg_color = self.id2SecretgoalStr[eg]
+                lg_color = self.id2SecretgoalStr[lg]
+                self.secretGoalRuleObjects.append(
+                    SecretGoalRule(
+                        earlierGoal=Goal(
+                            position=Int2D(
+                                x=self.goal_positions[eg_color][0],
+                                y=self.goal_positions[eg_color][1]
+                            ), 
+                            color=eg_color
+                        ), 
+                        laterGoal=Goal(
+                            position=Int2D(
+                                x=self.goal_positions[lg_color][0],
+                                y=self.goal_positions[lg_color][1]
+                            ), 
+                            color=lg_color
+                        ),
+                    )
+                )
             self.secret_goal_rules.append(secretGoalRule)
 
         # Available directional actions:
@@ -916,7 +949,7 @@ class CoMazeLocalGymEnv(MiniGridEnv):
                     size=(self.nbr_players, nb_actions_per_player),
                     replace=False
                 )
-                
+            self.availableDirectionalActions_indices = availableDirectionalActions    
             skip_action = np.asarray([[4]])
             for player_idx in range(self.nbr_players):
                 ada = availableDirectionalActions[player_idx:player_idx+1] #shape 1 x nb_actions_per_player
@@ -968,7 +1001,38 @@ class CoMazeLocalGymEnv(MiniGridEnv):
             'current_player': np.ones((1,1), dtype=np.int32)*self.current_player,
         }
 
-        return obs, [info for _ in range(self.nbr_players)]
+        # Update abstract repr:
+        #self.lastAction = None
+        self.lastMove = Move(
+            action = None, 
+            predicted_action = None, 
+            symbol_message = None,
+            predicted_goal = None
+        )
+        self.abstract_repr = {
+            "arenaSize": copy.deepcopy(Int2D(self.height, self.width)),
+            "agentPosition": copy.deepcopy(self.agent_pos),
+            "goals": copy.deepcopy(self.goal_positions),
+            "reached_goals": [ self.id2SecretgoalStr[self.secretgoalEnum2id[g]] for g in self.reached_goals],
+            #"lastAction":
+            "last_move":self.lastMove,
+            "directions": [
+                Direction("UP","UP", 0, -1),
+                Direction("DOWN","DOWN", 0, 1),
+                Direction("LEFT","LEFT", -1, 0),
+                Direction("RIGHT","RIGHT", 1, 0)
+            ],
+            "actions": copy.deepcopy(self.availableDirectionalActions_indices),
+            "secretGoalRule": copy.deepcopy(self.secretGoalRuleObjects),
+            "current_player": self.current_player,
+        }
+        info['abstract_repr'] = self.abstract_repr
+
+        infos = [copy.deepcopy(info) for _ in range(self.nbr_players)]
+        infos[1-self.current_player]["abstract_repr"]["current_player"] = self.current_player
+
+
+        return obs, infos
 
     def _regularise_communication_channel(self, communication_channel_output):
         # Regularise the use of EoS symbol:
@@ -989,29 +1053,39 @@ class CoMazeLocalGymEnv(MiniGridEnv):
 
         # Generate the surrounding walls
         self.grid.wall_rect(0, 0, width, height)
+        self.goal_positions = {}
 
         if True: #self.level != 5:
+            assert self.level == 5
             # SQUARE:
-            # # Place red goal square:
-            # self.put_obj(RedGoal(), 1,1)
-            # # Place yellow goal square:
-            # self.put_obj(YellowGoal(), width-2,1)
-            # # Place green goal square:
-            # self.put_obj(GreenGoal(), 1,height-2)
-            # # Place blue goal square:
-            # self.put_obj(BlueGoal(), width-2,height-2)
+            # Place red goal square:
+            self.put_obj(RedGoal(), 1,1)
+            self.goal_positions['RED'] = (1,1)
+            # Place yellow goal square:
+            self.put_obj(YellowGoal(), width-2,1)
+            self.goal_positions['YELLOW'] = (width-2,1)
+            # Place green goal square:
+            self.put_obj(GreenGoal(), 1,height-2)
+            self.goal_positions['GREEN'] = (1,height-2)
+            # Place blue goal square:
+            self.put_obj(BlueGoal(), width-2,height-2)
+            self.goal_positions['BLUE'] = (width-2,height-2)
 
             # PRISM:
-            # Place red goal square:
-            self.put_obj(RedGoal(), 1,height//2)
-            # Place yellow goal square:
-            self.put_obj(YellowGoal(), width//2,1)
-            # Place green goal square:
-            self.put_obj(GreenGoal(), width-2,height//2)
-            # Place blue goal square:
-            self.put_obj(BlueGoal(), width//2,height-2)
-
+            # # Place red goal square:
+            # self.put_obj(RedGoal(), 1,height//2)
+            # self.goal_positions['RED'] = (1,height//2)
+            # # Place yellow goal square:
+            # self.put_obj(YellowGoal(), width//2,1)
+            # self.goal_positions['YELLOW'] = (width//2,1)
+            # # Place green goal square:
+            # self.put_obj(GreenGoal(), width-2,height//2)
+            # self.goal_positions['GREEN'] = (width-2,height//2)
+            # # Place blue goal square:
+            # self.put_obj(BlueGoal(), width//2,height-2)
+            # self.goal_positions['BLUE'] = (width//2,height-2)
         else:
+            raise NotImplementedError
             # Place red goal square:
             self.put_obj(RedGoal(), 2,2)
             # Place yellow goal square:
@@ -1367,7 +1441,47 @@ class CoMazeLocalGymEnv(MiniGridEnv):
             'current_player': np.ones((1,1), dtype=np.int32)*self.current_player,
         }
         
-        return obs, reward_vector, self.done, [info for _ in range(self.nbr_players)]
+
+        # Update abstract repr:
+        #self.lastAction = None
+        self.lastMove = Move(
+            action = self.actionId2Str[directional_action], 
+            predicted_action = None, 
+            predicted_goal = None,
+            symbol_message = int(reg_communication_channel_output.item()) ,
+        )
+        self.abstract_repr = {
+            "arenaSize": copy.deepcopy(Int2D(self.height, self.width)),
+            "agentPosition": copy.deepcopy(self.agent_pos),
+            "goals": copy.deepcopy(self.goal_positions),
+            "reached_goals": [ self.id2SecretgoalStr[self.secretgoalEnum2id[g]] for g in self.reached_goals],
+            #"lastAction":
+            "last_move":self.lastMove,
+            "directions": [
+                Direction("UP","UP", 0, -1),
+                Direction("DOWN","DOWN", 0, 1),
+                Direction("LEFT","LEFT", -1, 0),
+                Direction("RIGHT","RIGHT", 1, 0)
+            ],
+            "actions": copy.deepcopy(self.availableDirectionalActions_indices),
+            "secretGoalRule": copy.deepcopy(self.secretGoalRuleObjects),
+            "current_player": self.current_player,
+        }
+        info['abstract_repr'] = self.abstract_repr
+
+        """
+        [trajectory[idx][-1][-1]["abstract_repr"]['secretGoalRule'][0].earlierGoal.color, trajectory[idx][-1][-1]["abstract_repr"]['secretGoalRule'][0].laterGoal.color, 
+        trajectory[idx][-1][-1]["abstract_repr"]['secretGoalRule'][1].earlierGoal.color, trajectory[idx][-1][-1]["abstract_repr"]['secretGoalRule'][1].laterGoal.color]
+        
+        trajectory[idx][-1][-1]["abstract_repr"]['reached_goals']
+        
+        [info[0][actor_index]["abstract_repr"]['secretGoalRule'][0].earlierGoal.color, info[0][actor_index]["abstract_repr"]['secretGoalRule'][0].laterGoal.color, 
+        info[0][actor_index]["abstract_repr"]['secretGoalRule'][1].earlierGoal.color, info[0][actor_index]["abstract_repr"]['secretGoalRule'][1].laterGoal.color]
+        """
+        infos = [copy.deepcopy(info) for _ in range(self.nbr_players)]
+        infos[1-self.current_player]["abstract_repr"]["current_player"] = self.current_player
+
+        return obs, reward_vector, self.done, infos
 
     def _reward(self):
         reward = 0
@@ -1745,8 +1859,30 @@ class CoMazeGymEnv9x9DenseLevel5HardSecrets(CoMazeLocalGymEnv):
             reset_level=5,
             fixed_secret_goal_rule=False,
             overall_max_steps=100,
-            secret_goal_rule_breaching_penalty=-1,
+            secret_goal_rule_breaching_penalty=-5,
             secret_goal_rule_selection="hard",
+            goal_reaching_reward=1,
+            **kwargs
+        )
+
+class CoMazeGymEnv9x9DenseLevel5UniformSecrets(CoMazeLocalGymEnv):
+    def __init__(self, **kwargs):
+        super().__init__(
+            width=9,
+            height=9,
+            see_through_walls=True,
+            seed=1337,
+            agent_view_size=7,
+            sparse_reward=False,
+            with_penalty= True, #False,
+            max_sentence_length=1,
+            vocab_size=20, #10,
+            joint_reward=True,
+            reset_level=5,
+            fixed_secret_goal_rule=False,
+            overall_max_steps=100,
+            secret_goal_rule_breaching_penalty=-1,
+            secret_goal_rule_selection="uniform",
             goal_reaching_reward=1,
             **kwargs
         )

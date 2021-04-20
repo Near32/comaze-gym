@@ -27,6 +27,8 @@ setup(
     install_requires=[
       'gym',
       'gym-minigrid',
+      #'opencv',
+      'astar',
     ],
 
     python_requires=">=3.6",

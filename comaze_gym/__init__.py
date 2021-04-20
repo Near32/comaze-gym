@@ -1,5 +1,6 @@
 from .env import *
 from .utils import *
+from .rule_based_agents import *
 
 import gym
 from gym.envs.registration import register
@@ -43,6 +44,11 @@ register(
 register(
     id='CoMaze-9x9-Dense-Level5-HardSecrets-v0',
     entry_point='comaze_gym.env:CoMazeGymEnv9x9DenseLevel5HardSecrets',
+)
+
+register(
+    id='CoMaze-9x9-Dense-Level5-UniformSecrets-v0',
+    entry_point='comaze_gym.env:CoMazeGymEnv9x9DenseLevel5UniformSecrets',
 )
 
 register(
