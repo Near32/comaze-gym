@@ -55,6 +55,9 @@ class RuleBasedAgentWrapper(object):
     def get_update_count(self):
         return 0
 
+    def get_nbr_actor(self) -> int:
+        return self.nbr_actors
+
     def set_nbr_actor(self, nbr_actors:int):
         self.nbr_actors = nbr_actors
         self.reset_actors()
@@ -136,7 +139,7 @@ class RuleBasedAgentWrapper(object):
             if next_move_str == "SKIP":
                 import ipdb; ipdb.set_trace()
             """
-            
+
             next_symbol_message_idx = next_move.symbol_message
             actions[pidx] = self.actions_str2idx[next_move_str]
             
