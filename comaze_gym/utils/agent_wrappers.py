@@ -58,6 +58,9 @@ class RuleBasedAgentWrapper(object):
     def get_nbr_actor(self) -> int:
         return self.nbr_actors
 
+    def parameters(self):
+        return []
+        
     def set_nbr_actor(self, nbr_actors:int):
         self.nbr_actors = nbr_actors
         self.reset_actors()
@@ -71,7 +74,7 @@ class RuleBasedAgentWrapper(object):
                 continue
             self.ruleBasedAgents[idx] = copy.deepcopy(self.original_ruleBasedAgent)
         
-    def take_action(self, state, infos):
+    def take_action(self, state, infos, as_logit=False):
         """
         Convert the :param state: and :param infos:
         into the input that the rule-based agent expects. 
