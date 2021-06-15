@@ -3,9 +3,9 @@ from typing import List, Dict
 import torch
 import torch.nn as nn
 
-class ActionPolicy(nn.Module):
+class MessagePolicy(nn.Module):
     def __init__(self, model:nn.Module):
-        super(ActionPolicy, self).__init__()
+        super(MessagePolicy, self).__init__()
         self.model = model
 
     def parameters(self):
@@ -18,7 +18,7 @@ class ActionPolicy(nn.Module):
         raise NotImplementedError
 
     def clone(self, training=False):
-        return ActionPolicy(model=self.model.clone(training=training))
+        return MessagePolicy(model=self.model.clone(training=training))
 
     def forward(self, x:object):
         """
@@ -41,7 +41,7 @@ class ActionPolicy(nn.Module):
 
 from comaze_gym.utils import RuleBasedAgentWrapper
 
-class RuleBasedActionPolicy(ActionPolicy):
+class RuleBasedMessagePolicy(MessagePolicy):
     def __init__(
         self, 
         wrapped_rule_based_agent:RuleBasedAgentWrapper,
@@ -55,13 +55,13 @@ class RuleBasedActionPolicy(ActionPolicy):
             n= #messages * #actions.
             Else, n = # actions : directional actions.
         """
-        super(RuleBasedActionPolicy, self).__init__(
+        super(RuleBasedMessagePolicy, self).__init__(
             model=wrapped_rule_based_agent
         )
         self.combined_action_space = combined_action_space
     
     def clone(self, training=False):
-        return RuleBasedActionPolicy(
+        return RuleBasedMessagePolicy(
             wrapped_rule_based_agent=self.model.clone(training=training), 
             combined_action_space=self.combined_action_space
         )
@@ -90,14 +90,13 @@ class RuleBasedActionPolicy(ActionPolicy):
             -'infos': Dict containing the entry 'abstract_repr' that is
                 actually used by the :param model:RuleBasedAgentWrapper.
         
-        :return log_a:
-            torch.Tensor of logits over actions 
+        :return log_m:
+            torch.Tensor of logits over messages 
             (as a Discrete OpenAI's action space).
 
             Here, depending on :attr combined_action_space:,
-            we either marginalized over possible messages or not.
+            we either marginalized over possible actions or not.
         """
-
         actions_idx = self.model.take_action(**x)
         # batch_size x 1
 
@@ -105,21 +104,22 @@ class RuleBasedActionPolicy(ActionPolicy):
         self.action_space_dim = self.model.action_space_dim 
         
         # giving some entropy...
-        p_a = torch.ones((batch_size, self.action_space_dim)) #.to(actions_idx.device)
+        #p_m = torch.ones((batch_size, self.action_space_dim)) #.to(actions_idx.device)
+        p_m = torch.zeros((batch_size, self.action_space_dim)) #.to(actions_idx.device)
 
         for bidx in range(batch_size):
-            p_a[bidx, int(actions_idx[bidx])] = 2.0
+            p_m[bidx, int(actions_idx[bidx])] = 10.0
 
         if self.combined_action_space:
-            return p_a.log_softmax(dim=-1)
+            return p_m.log_softmax(dim=-1)
 
         # Otherwise, we sum over the messages dimension (excluding the NOOP action):
         self.vocab_size = (self.action_space_dim-1)//5
         # There are 5 possible directional actions:
-        p_a = p_a[...,:-1].reshape((batch_size, 5, self.vocab_size)).sum(dim=-1)
-        # batch_size x 5
+        p_m = p_m[...,:-1].reshape((batch_size, 5, self.vocab_size)).sum(dim=1)
+        # batch_size x vocab_size
 
-        return p_a.log_softmax(dim=1)
-
+        return p_m.log_softmax(dim=1)
+        
 
         

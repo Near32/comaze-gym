@@ -60,10 +60,16 @@ class RuleBasedAgentWrapper(object):
 
     def parameters(self):
         return []
-        
+
     def set_nbr_actor(self, nbr_actors:int):
         self.nbr_actors = nbr_actors
         self.reset_actors()
+
+    def get_rnn_states(self):
+        return copy.deepcopy(self.ruleBasedAgents)
+
+    def set_rnn_states(self, rnn_states):
+        self.ruleBasedAgents = rnn_states
 
     def reset_actors(self, indices:List[int]=None):
         if indices is None: indices = list(range(self.nbr_actors))

@@ -1,2 +1,4 @@
 from .multi_step_cic import MultiStepCIC
 from .action_policy import ActionPolicy, RuleBasedActionPolicy
+from .message_trajectory_mutual_information_metric import MessageTrajectoryMutualInformationMetric
+from .message_policy import MessagePolicy, RuleBasedMessagePolicy

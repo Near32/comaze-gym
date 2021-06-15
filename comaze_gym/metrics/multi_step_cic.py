@@ -84,6 +84,7 @@ class MultiStepCIC(object):
                 eff_mask = mask 
 
             for t in range(T):
+                m = eff_mask[actor_id][t] 
                 with torch.no_grad():
                     log_pt = action_policy(x[actor_id][t]).detach()
                     # batch_size x action_space_dim
@@ -98,11 +99,13 @@ class MultiStepCIC(object):
                 log_p_bar_t = self.action_policy_bar(xp[actor_id][t])
                 # batch_size x action_space_dim
 
-                nbr_samples += at.shape[0]
-                pred_at = log_p_bar_t.argmax(dim=-1)
-                accuracy += (pred_at==at).float().sum()
-
+                m = m.to(log_p_bar_t.device)
                 at = at.to(log_p_bar_t.device)
+                
+                nbr_samples += m*at.shape[0]
+                pred_at = log_p_bar_t.argmax(dim=-1)
+                accuracy += m*(pred_at==at).float().sum()
+
                 #L_ce_t = F.cross_entropy(
                 L_ce_t = F.nll_loss(
                     input=log_p_bar_t,
@@ -114,7 +117,7 @@ class MultiStepCIC(object):
                 #m = eff_mask[actor_id][t]
                 #L_ce[actor_id] += m*L_ce_t
                 if L_ce.device != L_ce_t.device:    L_ce = L_ce.to(L_ce_t.device)
-                L_ce += L_ce_t
+                L_ce += m*L_ce_t
                 # 1
 
             total_L_ce[actor_id] = L_ce
@@ -159,6 +162,7 @@ class MultiStepCIC(object):
 
         if biasing:
             action_policy = self.action_policy
+            self.action_policy.save_inner_state()
         else:
             action_policy = self.action_policy.clone()
             
@@ -173,21 +177,27 @@ class MultiStepCIC(object):
                 eff_mask = mask 
 
             for t in range(T):
+                m = eff_mask[actor_id][t] 
+                
                 pt = action_policy(x[actor_id][t]).exp()
                 # 1 x action_space_dim
                 p_bar_t = self.action_policy_bar(xp[actor_id][t]).exp().detach()
                 # 1 x action_space_dim
+                
+                m = m.to(p_bar_t.device)
+                pt = pt.to(p_bar_t.device)
                 L_pl_t = -(p_bar_t-pt).abs().sum()#.sum(dim=-1)
                 # 1
                 
                 #m = eff_mask[actor_id][t] 
                 #L_pl[actor_id] += m*L_pl_t
-                L_pl[actor_id] += L_pl_t
+                if L_pl.device != L_pl_t.device:    L_pl = L_pl.to(L_pl_t.device)
+                L_pl[actor_id] += m*L_pl_t
                 # batch_size
 
         if biasing:
             self.action_policy.reset(nbr_actors)
-        # TODO: reset the whole rnn states ...
+            self.action_policy.restore_inner_state()
 
         return L_pl
 
@@ -229,10 +239,14 @@ class MultiStepCIC(object):
                     eff_mask = mask 
 
                 for t in range(T):
+                    m = eff_mask[actor_id][t] 
+                    
                     log_pt = action_policy(x[actor_id][t])
                     # 1 x action_space_dim
                     log_p_bar_t = self.action_policy_bar(xp[actor_id][t])
                     # 1 x action_space_dim
+                    m = m.to(log_p_bar_t.device)
+                    log_pt = log_pt.to(log_p_bar_t.device)
                     ms_cic_t = F.kl_div(
                         input=log_pt,
                         target=log_p_bar_t.exp(),
@@ -243,7 +257,7 @@ class MultiStepCIC(object):
                     
                     #m = eff_mask[actor_id][t]
                     #ms_cic[actor_id] += m*ms_cic_t
-                    ms_cic[actor_id] += ms_cic_t
+                    ms_cic[actor_id] += m*ms_cic_t
                     # 1
 
         return ms_cic
