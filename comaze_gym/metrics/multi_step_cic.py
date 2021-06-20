@@ -196,7 +196,7 @@ class MultiStepCIC(object):
                 # batch_size
 
         if biasing:
-            self.action_policy.reset(nbr_actors)
+            self.action_policy.reset(nbr_actors, training=True)
             self.action_policy.restore_inner_state()
 
         return L_pl

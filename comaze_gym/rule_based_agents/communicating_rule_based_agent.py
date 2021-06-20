@@ -1,6 +1,7 @@
 from typing import List, Optional
 import math
 
+import numpy as np 
 from astar import find_path
 from sys import argv
 
@@ -23,6 +24,13 @@ class CommunicatingRuleBasedAgent(object):
         Direction('LEFT', 'RIGHT', -1, 0),
         Direction('RIGHT', 'LEFT', 1, 0),
     ]
+
+    secretgoalStr2id = {
+        "RED":0, 
+        "YELLOW":1, 
+        "BLUE":2, 
+        "GREEN":3
+    }
 
     last_followed_path = None
     toxic_field = None
@@ -107,6 +115,10 @@ class CommunicatingRuleBasedAgent(object):
             return 
 
         earlierGoal_color, laterGoal_color = self.decoded_secret_goal_rule
+        if hasattr(self, "secretgoalids"):
+            self.secretgoalids.append(self.secretgoalStr2id[earlierGoal_color])
+            self.secretgoalids.append(self.secretgoalStr2id[laterGoal_color])
+
         unreachedGoals_colors = [g.color for g in game.unreachedGoals]
         if earlierGoal_color in unreachedGoals_colors:
             # then we need to put later goal as a toxic tile:
@@ -119,6 +131,13 @@ class CommunicatingRuleBasedAgent(object):
         return
 
     def next_move(self, game: Game, player: Player):
+        # Bookkeeping of the secretGoalRule:
+        if player.secretGoalRule:
+            self.secretgoalids = [
+                self.secretgoalStr2id[player.secretGoalRule.earlierGoal.color],
+                self.secretgoalStr2id[player.secretGoalRule.laterGoal.color],
+            ]
+
         # Decode the message, assuming similar language.
         # Set the toxic tile directly from message.
         self.handle_communication(game, player)
@@ -161,7 +180,7 @@ class CommunicatingRuleBasedAgent(object):
 
         self.last_followed_path = path_to_goal
 
-        predicted_goal = self.get_color_name(game, path_to_goal[-1])
+        self.predicted_goal = self.get_color_name(game, path_to_goal[-1])
 
         action = self.action_name(path_to_goal[0], path_to_goal[1])
         if self.action_available(game, action):  # we can do this step
@@ -187,13 +206,25 @@ class CommunicatingRuleBasedAgent(object):
         move = Move(
             action=my_action, 
             predicted_action=prediction, 
-            predicted_goal=predicted_goal,
+            predicted_goal=self.predicted_goal,
             symbol_message=secret_goal_rule_message,
         )
 
         return move 
 
     # -------------Helper Functions--------------
+
+    def get_hidden_state(self):
+        """
+        returns a one-hot-encoding of the predicted goal.
+        """
+        hs = np.zeros(4*5)
+        if hasattr(self, "predicted_goal") and self.predicted_goal is not None:
+            hs[ self.secretgoalStr2id[self.predicted_goal] ] = 1.0
+        if hasattr(self, "secretgoalids"):
+            for sgid in range(len(self.secretgoalids)):
+                hs[4+sgid*4+self.secretgoalids[sgid]] = 1.0
+        return hs
 
     def encode_secret_goal_rule(self, player: Player):
         secret_goal_rule = player.secretGoalRule

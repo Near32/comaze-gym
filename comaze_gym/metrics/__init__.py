@@ -2,3 +2,5 @@ from .multi_step_cic import MultiStepCIC
 from .action_policy import ActionPolicy, RuleBasedActionPolicy
 from .message_trajectory_mutual_information_metric import MessageTrajectoryMutualInformationMetric
 from .message_policy import MessagePolicy, RuleBasedMessagePolicy
+from .goal_ordering_prediction_metric import GoalOrderingPredictionMetric 
+from .hiddenstate_policy import HiddenStatePolicy, RuleBasedHiddenStatePolicy

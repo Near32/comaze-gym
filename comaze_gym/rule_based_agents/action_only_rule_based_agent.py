@@ -1,6 +1,7 @@
 from typing import List, Optional
 import math
 
+import numpy as np
 from astar import find_path
 from sys import argv
 import random 
@@ -16,6 +17,13 @@ class ActionOnlyRuleBasedAgent(object):
         Direction('RIGHT', 'LEFT', 1, 0),
     ]
 
+    secretgoalStr2id = {
+        "RED":0, 
+        "YELLOW":1, 
+        "BLUE":2, 
+        "GREEN":3
+    }
+        
     last_followed_path = None
     toxic_field = None
     suspect_toxic = None
@@ -100,7 +108,7 @@ class ActionOnlyRuleBasedAgent(object):
             self.looping_counter += 1
 
         self.last_followed_path = path_to_goal
-        predicted_goal = self.get_color_name(game, path_to_goal[-1])
+        self.predicted_goal = self.get_color_name(game, path_to_goal[-1])
 
         action = self.action_name(path_to_goal[0], path_to_goal[1])
         if self.action_available(game, action):  # we can do this step
@@ -131,9 +139,18 @@ class ActionOnlyRuleBasedAgent(object):
             my_action = random.sample(action_set, 1)[0]
             self.suspect_toxic = None 
 
-        return Move(action=my_action, predicted_action=prediction, predicted_goal=predicted_goal)
+        return Move(action=my_action, predicted_action=prediction, predicted_goal=self.predicted_goal)
 
     # -------------Helper Functions--------------
+
+    def get_hidden_state(self):
+        """
+        returns a one-hot-encoding of the predicted goal.
+        """
+        hs = np.zeros(4)
+        if hasattr(self, "predicted_goal") and self.predicted_goal is not None:
+            hs[ self.secretgoalStr2id[self.predicted_goal] ] = 1.0
+        return hs
 
     def get_color_name(self, game, position):
         return next((goal.color for goal in game.unreachedGoals if goal.position == position), None)

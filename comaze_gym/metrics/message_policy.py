@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 import torch
 import torch.nn as nn
@@ -32,7 +32,8 @@ class MessagePolicy(nn.Module):
         """
         raise NotImplementedError
 
-    def reset(self, batch_size:int=None):
+    #def reset(self, batch_size:int=None):
+    def reset(self, batch_size:int, training:Optional[bool]=False):
         """
         Call at the beginning of each episode.
         """
@@ -66,7 +67,7 @@ class RuleBasedMessagePolicy(MessagePolicy):
             combined_action_space=self.combined_action_space
         )
     
-    def reset(self, batch_size:int):
+    def reset(self, batch_size:int, training:Optional[bool]=False):
         self.model.set_nbr_actor(batch_size)
 
     def get_nbr_actor(self):

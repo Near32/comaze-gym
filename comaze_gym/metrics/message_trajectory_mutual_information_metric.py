@@ -103,7 +103,7 @@ class MessageTrajectoryMutualInformationMetric(object):
         # batch_size 
 
         if biasing:
-            self.message_policy.reset(nbr_actors)
+            self.message_policy.reset(nbr_actors, training=True)
             self.message_policy.restore_inner_state()
 
         return L_ps, ent_pi_bar_m

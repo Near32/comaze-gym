@@ -79,7 +79,10 @@ class RuleBasedAgentWrapper(object):
                 self.ruleBasedAgents.append(copy.deepcopy(self.original_ruleBasedAgent))
                 continue
             self.ruleBasedAgents[idx] = copy.deepcopy(self.original_ruleBasedAgent)
-        
+    
+    def get_hidden_state(self):
+        return [self.ruleBasedAgents[a].get_hidden_state() for a in range(self.nbr_actors)]
+
     def take_action(self, state, infos, as_logit=False):
         """
         Convert the :param state: and :param infos:
