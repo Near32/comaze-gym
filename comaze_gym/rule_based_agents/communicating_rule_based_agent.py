@@ -18,25 +18,32 @@ idx2GoalColor = dict(zip(goalColor2idx.values(), goalColor2idx.keys()))
 
 # Adapted from ? and Marie Ossenkopf:
 class CommunicatingRuleBasedAgent(object):
-    directions = [
-        Direction('UP', 'DOWN', 0, -1),
-        Direction('DOWN', 'UP', 0, 1),
-        Direction('LEFT', 'RIGHT', -1, 0),
-        Direction('RIGHT', 'LEFT', 1, 0),
-    ]
+    def __init__(self):
+        self.directions = [
+            Direction('UP', 'DOWN', 0, -1),
+            Direction('DOWN', 'UP', 0, 1),
+            Direction('LEFT', 'RIGHT', -1, 0),
+            Direction('RIGHT', 'LEFT', 1, 0),
+        ]
 
-    secretgoalStr2id = {
-        "RED":0, 
-        "YELLOW":1, 
-        "BLUE":2, 
-        "GREEN":3
-    }
+        self.secretgoalStr2id = {
+            "RED":0, 
+            "YELLOW":1, 
+            "BLUE":2, 
+            "GREEN":3
+        }
 
-    last_followed_path = None
-    toxic_field = None
-    known_toxic_field = None
-    suspect_toxic = None
-    last_goals_unreached = None
+        self.reset()
+
+    def reset(self):
+        self.last_followed_path = None
+        self.toxic_field = None
+        self.known_toxic_field = None
+        self.suspect_toxic = None
+        self.last_goals_unreached = None
+        self.game = None
+        self.player = None
+
 
     def is_path_to_goal(self, path, goal):
         if goal and path:
@@ -115,7 +122,7 @@ class CommunicatingRuleBasedAgent(object):
             return 
 
         earlierGoal_color, laterGoal_color = self.decoded_secret_goal_rule
-        if hasattr(self, "secretgoalids"):
+        if hasattr(self, "secretgoalids") and self.secretgoalids is not None:
             self.secretgoalids.append(self.secretgoalStr2id[earlierGoal_color])
             self.secretgoalids.append(self.secretgoalStr2id[laterGoal_color])
 
@@ -131,12 +138,16 @@ class CommunicatingRuleBasedAgent(object):
         return
 
     def next_move(self, game: Game, player: Player):
+        self.game = game 
+        self.player = player
         # Bookkeeping of the secretGoalRule:
-        if player.secretGoalRule:
+        if player.secretGoalRule is not None:
             self.secretgoalids = [
                 self.secretgoalStr2id[player.secretGoalRule.earlierGoal.color],
                 self.secretgoalStr2id[player.secretGoalRule.laterGoal.color],
             ]
+        else:
+            self.secretgoalids = None
 
         # Decode the message, assuming similar language.
         # Set the toxic tile directly from message.
@@ -216,14 +227,35 @@ class CommunicatingRuleBasedAgent(object):
 
     def get_hidden_state(self):
         """
-        returns a one-hot-encoding of the predicted goal.
+        returns a hidden state consisting of:
+        (i)     three one-hot-encodings of the reached goals.
+        (ii)    one-hot-encoding of the predicted goal.
+        (iii)   four one-hot-encodings for both players' secret goal rules.
         """
-        hs = np.zeros(4*5)
+        hs = np.zeros((3+1+4)*4)
+        startidx=0
+
+        if self.game is not None:
+            unreachedGoals_str = [goal.color for goal in self.game.unreachedGoals]
+            reached_goals_str = [
+                goal_str 
+                for goal_str in self.secretgoalStr2id.keys() 
+                if goal_str not in unreachedGoals_str
+            ]
+
+            for goal_str in reached_goals_str:
+                hs[ startidx+self.secretgoalStr2id[goal_str] ] = 1.0
+                startidx += 4
+        startidx = 3*4 
+        
         if hasattr(self, "predicted_goal") and self.predicted_goal is not None:
-            hs[ self.secretgoalStr2id[self.predicted_goal] ] = 1.0
+            hs[ startidx+self.secretgoalStr2id[self.predicted_goal] ] = 1.0
+        
+        startidx += 4
         if hasattr(self, "secretgoalids"):
             for sgid in range(len(self.secretgoalids)):
-                hs[4+sgid*4+self.secretgoalids[sgid]] = 1.0
+                hs[startidx+sgid*4+self.secretgoalids[sgid]] = 1.0
+        
         return hs
 
     def encode_secret_goal_rule(self, player: Player):

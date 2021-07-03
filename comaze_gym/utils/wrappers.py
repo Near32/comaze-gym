@@ -6,8 +6,9 @@ import cv2
 from gym_minigrid.minigrid import *
 
 class Bijection(object):
-    def __init__(self, env, vocab_only=True):
+    def __init__(self, env, weights_bias=[0.25, 0.25, 0.25, 0.25], vocab_only=False):
         self.env = env 
+        self.weights_bias = weights_bias
         self.vocab_only = vocab_only
 
         self.vocab_size = self.env.vocab_size
@@ -65,7 +66,8 @@ class Bijection(object):
     def reset(self):
 
         # Directional Action:
-        bijection_idx = np.random.randint(4)
+        #bijection_idx = np.random.randint(4)
+        bijection_idx = np.random.choice(list(range(4)), p=self.weights_bias)
         if self.vocab_only: bijection_idx = 0
         self.bijection_str = self.bijectionIntToStr[bijection_idx]
         

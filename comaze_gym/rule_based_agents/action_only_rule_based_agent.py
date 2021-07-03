@@ -10,25 +10,32 @@ from comaze_gym.env.comaze import *
 
 # Adapted from ?:
 class ActionOnlyRuleBasedAgent(object):
-    directions = [
-        Direction('UP', 'DOWN', 0, -1),
-        Direction('DOWN', 'UP', 0, 1),
-        Direction('LEFT', 'RIGHT', -1, 0),
-        Direction('RIGHT', 'LEFT', 1, 0),
-    ]
+    def __init__(self):
+        self.directions = [
+            Direction('UP', 'DOWN', 0, -1),
+            Direction('DOWN', 'UP', 0, 1),
+            Direction('LEFT', 'RIGHT', -1, 0),
+            Direction('RIGHT', 'LEFT', 1, 0),
+        ]
 
-    secretgoalStr2id = {
-        "RED":0, 
-        "YELLOW":1, 
-        "BLUE":2, 
-        "GREEN":3
-    }
-        
-    last_followed_path = None
-    toxic_field = None
-    suspect_toxic = None
-    last_goals_unreached = None
-    looping_counter = 0
+        self.secretgoalStr2id = {
+            "RED":0, 
+            "YELLOW":1, 
+            "BLUE":2, 
+            "GREEN":3
+        }
+            
+        self.reset()
+
+    def reset(self):
+        self.last_followed_path = None
+        self.toxic_field = None
+        self.suspect_toxic = None
+        self.suspect_toxic_goal_color_str = None
+        self.last_goals_unreached = None
+        self.looping_counter = 0
+        self.game = None
+        self.player = None
 
     def is_path_to_goal(self, path, goal):
         if goal and path:
@@ -47,13 +54,19 @@ class ActionOnlyRuleBasedAgent(object):
             self.toxic_field = None
 
         possible_paths: List[List[Int2D]]
-        possible_paths = [
-            self.shortest_path_to_point(game, goal.position)
+        possible_paths_and_goals = [
+            [
+                self.shortest_path_to_point(game, goal.position),
+                goal 
+            ]
             for goal in targets
         ]
 
-        possible_paths.sort(key=lambda path: self.sort_key(game, player, path))
-        return possible_paths
+        possible_paths_and_goals.sort(key=lambda path_and_goal: self.sort_key(game, player, path_and_goal[0]))
+        possible_paths = [pg[0] for pg in possible_paths_and_goals]
+        goals = [pg[1] for pg in possible_paths_and_goals]
+
+        return possible_paths, goals
 
     def sort_key(self, game: Game, player: Player, path: List[Int2D]):
         return (
@@ -80,7 +93,9 @@ class ActionOnlyRuleBasedAgent(object):
         return list(paths)
 
     def next_move(self, game: Game, player: Player):
-        paths_to_goals = self.shortest_paths_to_nearest_goals(game, player)
+        self.game = game
+        self.player = player
+        paths_to_goals, goals = self.shortest_paths_to_nearest_goals(game, player)
 
         if not paths_to_goals:
             return Move(action="SKIP", predicted_action=None, predicted_goal=None)
@@ -88,16 +103,18 @@ class ActionOnlyRuleBasedAgent(object):
         # Check if we finished reached goals
         if self.last_goals_unreached != game.unreachedGoals:
             self.suspect_toxic = None
+            self.suspect_toxic_goal_color_str = None
         self.last_goals_unreached = game.unreachedGoals
 
         path_to_goal = paths_to_goals[0]  # default
-        for path in paths_to_goals:
+        for path, goal in zip(paths_to_goals, goals):
             # Don't go to suspect toxic path
             if self.is_path_to_goal(path, self.suspect_toxic):
                 continue
             # Set new toxic suspect if we visited the same field twice
             if path == self.last_followed_path:
                 self.suspect_toxic = path[-1]
+                self.suspect_toxic_goal_color_str = goal.color
                 continue
             path_to_goal = path
             break
@@ -138,6 +155,7 @@ class ActionOnlyRuleBasedAgent(object):
             action_set.remove(my_action)
             my_action = random.sample(action_set, 1)[0]
             self.suspect_toxic = None 
+            self.suspect_toxic_goal_color_str = None
 
         return Move(action=my_action, predicted_action=prediction, predicted_goal=self.predicted_goal)
 
@@ -145,11 +163,40 @@ class ActionOnlyRuleBasedAgent(object):
 
     def get_hidden_state(self):
         """
-        returns a one-hot-encoding of the predicted goal.
+        returns a hidden state consisting of:
+        (i)     three one-hot-encodings of the reached goals.
+        (ii)    one-hot-encoding of the suspect_toxic goal.
+        (iii)   one-hot-encoding of the predicted goal.
+        (iv)    two one-hot-encodings for the player's secret goal rules.
         """
-        hs = np.zeros(4)
+        hs = np.zeros((3+1+1+2)*4)
+        startidx=0
+
+        if self.game is not None:
+            unreachedGoals_str = [goal.color for goal in self.game.unreachedGoals]
+            reached_goals_str = [
+                goal_str 
+                for goal_str in self.secretgoalStr2id.keys() 
+                if goal_str not in unreachedGoals_str
+            ]
+            for goal_str in reached_goals_str:
+                hs[ startidx+self.secretgoalStr2id[goal_str] ] = 1.0
+                startidx += 4
+
+        startidx = 3*4 
+        
+        if hasattr(self, "suspect_toxic_goal_color_str") and self.suspect_toxic_goal_color_str is not None:
+            hs[ startidx+self.secretgoalStr2id[self.suspect_toxic_goal_color_str] ] = 1.0
+        startidx += 4
         if hasattr(self, "predicted_goal") and self.predicted_goal is not None:
-            hs[ self.secretgoalStr2id[self.predicted_goal] ] = 1.0
+            hs[ startidx+self.secretgoalStr2id[self.predicted_goal] ] = 1.0
+        
+        if self.player is not None:
+            startidx += 4
+            hs[ startidx+self.secretgoalStr2id[self.player.secretGoalRule.earlierGoal.color] ] = 1.0
+            startidx += 4
+            hs[ startidx+self.secretgoalStr2id[self.player.secretGoalRule.laterGoal.color] ] = 1.0
+        
         return hs
 
     def get_color_name(self, game, position):
