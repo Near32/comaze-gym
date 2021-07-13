@@ -53,6 +53,20 @@ class Bijection(object):
             "horizontal_mirror": (lambda x: cv2.flip(x, 1)),
             "vertical_horizontal_mirror": (lambda x: cv2.flip(cv2.flip(x, 1), 0)),
         }
+
+        self.info_position_bijection_encoder = {
+            "identity": lambda x, arenaSize: x,
+            "vertical_mirror": (lambda x, arenaSize: 
+                (x[0], arenaSize-x[1]-1) 
+            ),
+            "horizontal_mirror": (lambda x, arenaSize: 
+                (arenaSize-x[0]-1, x[1]) 
+            ),
+            "vertical_horizontal_mirror": (lambda x,arenaSize: 
+                (arenaSize-x[0]-1, arenaSize-x[1]-1) 
+            ),
+        }
+
         self.bijectionIntToStr = {
             0:"identity",
             1:"vertical_mirror",
@@ -66,7 +80,6 @@ class Bijection(object):
     def reset(self):
 
         # Directional Action:
-        #bijection_idx = np.random.randint(4)
         bijection_idx = np.random.choice(list(range(4)), p=self.weights_bias)
         if self.vocab_only: bijection_idx = 0
         self.bijection_str = self.bijectionIntToStr[bijection_idx]
@@ -84,22 +97,71 @@ class Bijection(object):
 
         """
         self.previous_obs = copy.deepcopy(obs)
+        self.new_obs = copy.deepcopy(obs)
 
         image = obs["image"]
-        image = self.pixel_obs_bijection_encoder[self.bijection_str](image)
-        obs["image"] = image
+        new_image = self.pixel_obs_bijection_encoder[self.bijection_str](image)
+        self.new_obs["image"] = new_image
 
-        ada = obs["available_directional_actions"]
-        for adaidx in range(ada.shape[-1]):
-            ada[0, adaidx] = self.direction_action_bijection_encoder[self.bijection_str][ada[0,adaidx]]
-        obs["available_directional_actions"] = ada
+        ada = copy.deepcopy(obs["available_directional_actions"])
+        # there is only one row for sure...
+        for rowidx in range(ada.shape[0]):
+            for adaidx in range(ada.shape[-1]):
+                ada[rowidx, adaidx] = self.direction_action_bijection_encoder[self.bijection_str][ada[rowidx,adaidx]]
+        self.new_obs["available_directional_actions"] = ada
 
-        comm = obs["communication_channel"]
+        comm = copy.deepcopy(obs["communication_channel"])
         for idx in range(self.max_sentence_length):
             comm[idx] = self.communication_channel_bijection_encoder[comm[idx].item()]
-        obs["communication_channel"] = comm
+        self.new_obs["communication_channel"] = comm
         
-        return obs
+        return copy.deepcopy(self.new_obs)
+
+    def encode_info(self, info):
+        """
+
+        """
+        self.previous_info = copy.deepcopy(info)
+        self.new_info = copy.deepcopy(info)
+
+        self.new_info["abstract_repr"]["goals"] = {
+            goal_str:self.info_position_bijection_encoder[self.bijection_str](
+                goal_position, 
+                arenaSize=info["abstract_repr"]["arenaSize"].x,
+            )
+            for goal_str, goal_position in info["abstract_repr"]["goals"].items()
+        }
+        
+        self.new_info["abstract_repr"]["agentPosition"] = self.info_position_bijection_encoder[self.bijection_str](
+            info["abstract_repr"]["agentPosition"],
+            arenaSize=info["abstract_repr"]["arenaSize"].x,
+        )
+
+        for idx, sgr in enumerate(info["abstract_repr"]["secretGoalRule"]):
+            earlierPosition = self.info_position_bijection_encoder[self.bijection_str](
+                [sgr.earlierGoal.position.x, sgr.earlierGoal.position.y],
+                arenaSize=info["abstract_repr"]["arenaSize"].x,
+            )
+            self.new_info["abstract_repr"]["secretGoalRule"][idx].earlierGoal.position.x = earlierPosition[0]
+            self.new_info["abstract_repr"]["secretGoalRule"][idx].earlierGoal.position.y = earlierPosition[1]
+
+            laterPosition = self.info_position_bijection_encoder[self.bijection_str](
+                [sgr.laterGoal.position.x, sgr.laterGoal.position.y],
+                arenaSize=info["abstract_repr"]["arenaSize"].x,
+            )
+            self.new_info["abstract_repr"]["secretGoalRule"][idx].laterGoal.position.x = laterPosition[0]
+            self.new_info["abstract_repr"]["secretGoalRule"][idx].laterGoal.position.y = laterPosition[1]
+        
+        ada = copy.deepcopy(info["abstract_repr"]["actions"])
+        # there are as many rows as there are players...
+        for rowidx in range(ada.shape[0]):
+            for adaidx in range(ada.shape[-1]):
+                ada[rowidx, adaidx] = self.direction_action_bijection_encoder[self.bijection_str][ada[rowidx,adaidx]]
+        self.new_info["abstract_repr"]["actions"] = ada
+
+        # TODO: handle walls/bonuses positions if they are used...
+
+        return copy.deepcopy(self.new_info)
 
     def decode_action(self, action):
         """
@@ -108,18 +170,24 @@ class Bijection(object):
             - "communication_channel": ... 
         """
         self.previous_action = copy.deepcopy(action)
+        self.new_action = copy.deepcopy(action)
 
-        dir_action = action.get("directional_action")
+        dir_action = copy.deepcopy(action.get("directional_action"))
         dir_action = self.direction_action_bijection_decoder[self.bijection_str][dir_action]
-        action["directional_action"] = dir_action
+        self.new_action["directional_action"] = dir_action
 
         # Communication Channel:
-        comm = action.get("communication_channel", np.zeros(shape=(1, self.max_sentence_length), dtype=np.int64))
+        comm = copy.deepcopy(
+            action.get(
+                "communication_channel", 
+                np.zeros(shape=(1, self.max_sentence_length), dtype=np.int64)
+            )
+        )
         for idx in range(self.max_sentence_length):
             comm[idx] = self.communication_channel_bijection_decoder[comm[idx].item()]
-        action["communication_channel"] = comm 
+        self.new_action["communication_channel"] = comm 
 
-        return action
+        return copy.deepcopy(self.new_action)
 
 
 class RGBImgWrapper(gym.Wrapper):
@@ -428,6 +496,7 @@ class OtherPlayWrapper(gym.Wrapper):
 
         for pidx in range(self.nbr_players):
             observations[pidx] = self.per_player_bijections[pidx].encode_obs(observations[pidx])
+            infos[pidx] = self.per_player_bijections[pidx].encode_info(infos[pidx])
 
         return observations, infos
 
@@ -439,7 +508,7 @@ class OtherPlayWrapper(gym.Wrapper):
 
         for pidx in range(self.nbr_players):
             next_obs[pidx] = self.per_player_bijections[pidx].encode_obs(next_obs[pidx])
-
+            next_infos[pidx] = self.per_player_bijections[pidx].encode_info(next_infos[pidx])
         return next_obs, reward, done, next_infos
 
 

@@ -195,17 +195,21 @@ def test_env_level5_hard_secrets(reward_scheme):
 
 def test_op_wrapper(reward_scheme):    
     from comaze_gym.utils import comaze_wrap
-    env = gym.make(f"CoMaze-7x7-{reward_scheme}-v0")
+    #env = gym.make(f"CoMaze-7x7-{reward_scheme}-v0")
+    env = gym.make(f"CoMaze-9x9-{reward_scheme}-Level5-HardSecrets-v0")
     env = comaze_wrap(env, op=True)
-    level = 1
+    #level = 1
 
     # level : 1
-    obs = env.reset(level=level)
+    #obs = env.reset(level=level)
+    obs, info = env.reset()
     env.render()
 
     import ipdb; ipdb.set_trace()
-    obs = env.step([np.array([55]), np.array([3])])
-
+    nobs, r, d, ninfo = env.step([np.array([55]), np.array([106])])
+    #obs = env.step([np.array([55]), np.array([3])])
+    import ipdb; ipdb.set_trace()
+    
     
     obs = env.step(noop)
 
@@ -311,8 +315,8 @@ if __name__ == "__main__":
     #test_wrapper(reward_scheme)
     reward_scheme = "Dense"
     #test_wrapper(reward_scheme)
-    #test_op_wrapper(reward_scheme)
+    test_op_wrapper(reward_scheme)
     #test_env_level5(reward_scheme)
     #test_env_level5_easy_secrets(reward_scheme)
-    test_env_level5_hard_secrets(reward_scheme)
+    #test_env_level5_hard_secrets(reward_scheme)
 
