@@ -44,7 +44,14 @@ class GoalOrderingPredictionMetric(object):
         print(f"GoalOrderingPredictionMetric : save_path :: {self.data_save_path}")
         self.saving_period = 1
 
-    def compute_goal_ordering_prediction_loss(self, x:List[List[object]], y:List[torch.Tensor], yp:List[torch.Tensor], mask:List[List[object]]=None, biasing:bool=False) -> torch.Tensor:
+    def compute_goal_ordering_prediction_loss(
+        self, 
+        x:List[List[object]], 
+        y:List[torch.Tensor], 
+        yp:List[torch.Tensor], 
+        mask:List[List[object]]=None, 
+        biasing:bool=False
+    ) -> torch.Tensor:
         """
         WARNING: this function resets the :attr hiddenstate_policy:! 
         Beware of potentially erasing agent's current's internal states
@@ -55,9 +62,14 @@ class GoalOrderingPredictionMetric(object):
             e.g.: the object can be a kwargs argument containing
             expected argument to the :attr hiddenstate_policy:.
         
-        :param x: 
+        :param y: 
             List[torch.Tensor] containing, for each actor, an object
             representing the labels for the prediction of reached goals ordering.
+            Shape: 4
+        
+        :param yp: 
+            List[torch.Tensor] containing, for each actor, an object
+            representing the labels for the prediction of secret goal rules.
             Shape: 4
 
         :param mask:
@@ -326,7 +338,7 @@ class GoalOrderingPredictionMetric(object):
             ax_goal.set_xlim(bottom, top)
             sns.lineplot(x=[bottom, top], y=[bottom, top], color='black', ax=ax_goal)
 
-            plt.savefig(os.path.join(self.data_save_path, f"goal_pred_acc_graph_{self.iteration}.svg"), dpi=300)
+            plt.savefig(os.path.join(self.data_save_path, f"goal_pred_sampleSize{batch_size}_acc_graph_{self.iteration}.svg"), dpi=300)
             plt.close(fig_goal)
             ##################################################
 
@@ -348,10 +360,10 @@ class GoalOrderingPredictionMetric(object):
             ax_rule.set_xlim(bottom, top)
             sns.lineplot(x=[bottom, top], y=[bottom, top], color='black', ax=ax_rule)
 
-            plt.savefig(os.path.join(self.data_save_path, f"rule_pred_acc_graph_{self.iteration}.svg"), dpi=300)
+            plt.savefig(os.path.join(self.data_save_path, f"rule_pred_sampleSize{batch_size}_acc_graph_{self.iteration}.svg"), dpi=300)
             plt.close(fig_rule)
 
-            with open(os.path.join(self.data_save_path,f"dataframe_it{self.iteration}.pickle"), 'wb') as f:
+            with open(os.path.join(self.data_save_path,f"dataframe_sampleSize{batch_size}_it{self.iteration}.pickle"), 'wb') as f:
                 pickle.dump(df, f, protocol=pickle.HIGHEST_PROTOCOL)
 
         return output_dict

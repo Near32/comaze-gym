@@ -40,7 +40,8 @@ class CommunicatingRuleBasedAgent(object):
         self.toxic_field = None
         self.known_toxic_field = None
         self.suspect_toxic = None
-        self.last_goals_unreached = None
+        self.last_goals_unreached = []
+        self.reached_goals_str = []
         self.game = None
         self.player = None
 
@@ -168,6 +169,9 @@ class CommunicatingRuleBasedAgent(object):
         # Check if we finished reached goals
         if self.last_goals_unreached != game.unreachedGoals:
             self.suspect_toxic = None
+            newly_reached_goals = [goal for goal in self.last_goals_unreached if goal not in game.unreachedGoals]
+            if len(newly_reached_goals)==1:    
+                self.reached_goals_str.append(newly_reached_goals[0].color)
         self.last_goals_unreached = game.unreachedGoals
 
         path_to_goal = paths_to_goals[0]  # default
@@ -237,12 +241,14 @@ class CommunicatingRuleBasedAgent(object):
 
         if self.game is not None:
             unreachedGoals_str = [goal.color for goal in self.game.unreachedGoals]
+            """
             reached_goals_str = [
                 goal_str 
                 for goal_str in self.secretgoalStr2id.keys() 
                 if goal_str not in unreachedGoals_str
             ]
-
+            """
+            reached_goals_str = self.reached_goals_str
             for goal_str in reached_goals_str:
                 hs[ startidx+self.secretgoalStr2id[goal_str] ] = 1.0
                 startidx += 4
