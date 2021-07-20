@@ -1029,8 +1029,8 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         info['abstract_repr'] = self.abstract_repr
 
         infos = [copy.deepcopy(info) for _ in range(self.nbr_players)]
-        infos[1-self.current_player]["abstract_repr"]["current_player"] = self.current_player
-
+        for player_id in range(self.nbr_players):
+            infos[player_id]["abstract_repr"]["player_id"] = player_id
 
         return obs, infos
 
@@ -1479,8 +1479,10 @@ class CoMazeLocalGymEnv(MiniGridEnv):
         info[0][actor_index]["abstract_repr"]['secretGoalRule'][1].earlierGoal.color, info[0][actor_index]["abstract_repr"]['secretGoalRule'][1].laterGoal.color]
         """
         infos = [copy.deepcopy(info) for _ in range(self.nbr_players)]
-        infos[1-self.current_player]["abstract_repr"]["current_player"] = self.current_player
-
+        #infos[1-self.current_player]["abstract_repr"]["current_player"] = self.current_player
+        for player_id in range(self.nbr_players):
+            infos[player_id]["abstract_repr"]["player_id"] = player_id
+            
         return obs, reward_vector, self.done, infos
 
     def _reward(self):
