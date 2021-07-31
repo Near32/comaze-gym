@@ -189,6 +189,38 @@ class Bijection(object):
 
         return copy.deepcopy(self.new_action)
 
+    def encode_action(self, action):
+        """
+        :param Action: Dict that contains the keys:
+            - "directional_action": Int in range [0,4]
+            - "communication_channel": ... 
+            corresponding to the action as seen by the agent.
+
+        :return EncodedAction: Dict that contains the keys:
+            - "directional_action": Int in range [0,4]
+            - "communication_channel": ... 
+            corresponding to the action as seen by the player.
+        """
+        previous_action = copy.deepcopy(action)
+        new_action = copy.deepcopy(action)
+
+        dir_action = copy.deepcopy(action.get("directional_action"))
+        dir_action = self.direction_action_bijection_encoder[self.bijection_str][dir_action]
+        new_action["directional_action"] = dir_action
+
+        # Communication Channel:
+        comm = copy.deepcopy(
+            action.get(
+                "communication_channel", 
+                np.zeros(shape=(1, self.max_sentence_length), dtype=np.int64)
+            )
+        )
+        for idx in range(self.max_sentence_length):
+            comm[idx] = self.communication_channel_bijection_encoder[comm[idx].item()]
+        new_action["communication_channel"] = comm 
+
+        return copy.deepcopy(new_action)
+
 
 class RGBImgWrapper(gym.Wrapper):
     """
@@ -297,6 +329,10 @@ class DiscreteCombinedActionWrapper(gym.Wrapper):
         
         self.sentenceId2sentence = sentenceId2sentence
 
+        self.sentence2sentenceId = {}
+        for sid in range(self.nb_possible_sentences):
+            self.sentence2sentenceId[ self.sentenceId2sentence[sid].tostring() ] = sid        
+        
     def _make_infos(self, observations, infos):
         self.infos = []
 
@@ -332,7 +368,7 @@ class DiscreteCombinedActionWrapper(gym.Wrapper):
 
         return observations, copy.deepcopy(self.infos) 
 
-    def _make_action(self, action):
+    def _decode_action(self, action):
         player_on_turn = self.infos[0]["current_player"].item()
         action = action[player_on_turn].item()
 
@@ -357,9 +393,22 @@ class DiscreteCombinedActionWrapper(gym.Wrapper):
         }
         
         return ad 
+
+    def _encode_action(self, action_dict):
+        original_action_direction_id = action_dict['directional_action']
+        original_action_sentence = action_dict['communication_channel']
+        import ipdb; ipdb.set_trace()
+        original_action_sentence_id = self.sentence2sentenceId[ original_action_sentence.tostring() ]
+
+        if original_action_sentence==0 and original_action_direction_id==4:
+            encoded_action = self.action_space.n-1
+        else:
+            encoded_action = original_action_direction_id*self.nb_possible_sentences+original_action_sentence_id
+
+        return encoded_action 
     
     def step(self, action):
-        original_action = self._make_action(action)
+        original_action = self._decode_action(action)
 
         next_observations, reward, done, next_infos = self.env.step(original_action)
 
@@ -487,6 +536,12 @@ class OtherPlayWrapper(gym.Wrapper):
             Bijection(env=env)
             for _ in range(self.nbr_players)
         ]
+
+    def _decode_action(self, action, player_id=0):
+        return self.per_player_bijections[player_id].decode_action(action)
+
+    def _encode_action(self, action, player_id=0):
+        return self.per_player_bijections[player_id].encode_action(action)
 
     def reset(self, **kwargs):
         for pidx in range(self.nbr_players):
