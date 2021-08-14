@@ -43,7 +43,8 @@ class MessageTrajectoryMutualInformationMetric(object):
         batch_size = len(x)
         
         L_ps = torch.zeros(batch_size)
-        
+        ent_pi_m_x_it = []
+
         nbr_actors = self.message_policy.get_nbr_actor()
 
         if biasing:
@@ -76,11 +77,12 @@ class MessageTrajectoryMutualInformationMetric(object):
                 # 1 x message_space_dim
                 nbr_samples += pt.shape[0]
 
-                ent_pt = -sum([pt[...,i]*log_pt[...,i] for i in range(pt.shape[-1])])
+                ent_pt = -torch.sum(pt*log_pt, dim=-1, keepdim=True)
                 # 1 x 1
-                
+                ent_pi_m_x_it.append(ent_pt)
+
                 if self.target_ent_pt is None:
-                    self.target_ent_pt = 0.5*torch.log(pt.shape[-1]*torch.ones(1)).to(pt.device)
+                    self.target_ent_pt = 0.5*torch.log(pt.shape[-1]*torch.ones(1)).to(pt.device).detach()
 
                 L_ps_t = self.target_loss_lambda*torch.pow(ent_pt-self.target_ent_pt, 2.0)
                 # 1
@@ -88,6 +90,9 @@ class MessageTrajectoryMutualInformationMetric(object):
                 if L_ps.device != L_ps_t.device:    L_ps = L_ps.to(L_ps_t.device)
                 L_ps[actor_id:actor_id+1] += m*L_ps_t.reshape(-1)
                 # batch_size
+            
+            # normalising:
+            L_ps[actor_id:actor_id+1] /= T 
 
         # normalization:
         pi_bar_m = pi_bar_m/nbr_samples
@@ -95,15 +100,22 @@ class MessageTrajectoryMutualInformationMetric(object):
         log_pi_bar_m = pi_bar_m.log()
         # 1 x message_space_dim
         
-        ent_pi_bar_m = -sum([pi_bar_m[...,i]*log_pi_bar_m[...,i] for i in range(pi_bar_m.shape[-1])])
+        ent_pi_bar_m = -torch.sum(pi_bar_m*log_pi_bar_m, dim=-1, keepdim=True)
         # 1 x 1
         
-        # Loss is minimized when averaged entropy is maximized:
-        L_ps = L_ps-nbr_samples*ent_pi_bar_m.reshape(-1)
+        # Mutual information between agent's messages and trajectories:
+        ent_pi_m_x_it = torch.cat(ent_pi_m_x_it, dim=-1)
+        # (1 x nbr_samples)
+        exp_ent_pi_m_x_it_over_x_it = ent_pi_m_x_it.mean(dim=-1, keepdim=True)
+        # (1 x 1 )
+
+        # Loss is minimized when averaged policy's entropy is maximized:
+        #L_ps = L_ps-nbr_samples*ent_pi_bar_m.reshape(-1)
+        L_ps = L_ps-ent_pi_bar_m.reshape(-1)
         # batch_size 
 
         if biasing:
             self.message_policy.reset(nbr_actors, training=True)
             self.message_policy.restore_inner_state()
 
-        return L_ps, ent_pi_bar_m
+        return L_ps, ent_pi_bar_m, exp_ent_pi_m_x_it_over_x_it

@@ -1,3 +1,5 @@
+from typing import Dict, List 
+
 import copy
 import numpy as np
 import gym
@@ -368,9 +370,10 @@ class DiscreteCombinedActionWrapper(gym.Wrapper):
 
         return observations, copy.deepcopy(self.infos) 
 
-    def _decode_action(self, action):
-        player_on_turn = self.infos[0]["current_player"].item()
-        action = action[player_on_turn].item()
+    def _decode_action(self, action:np.ndarray)->Dict[str,object]:
+        #player_on_turn = self.infos[0]["current_player"].item()
+        #action = action[player_on_turn].item()
+        action = action.item()
 
         if not self.action_space.contains(action):
             raise ValueError('action {} is invalid for {}'.format(action, self.action_space))
@@ -394,10 +397,9 @@ class DiscreteCombinedActionWrapper(gym.Wrapper):
         
         return ad 
 
-    def _encode_action(self, action_dict):
+    def _encode_action(self, action_dict:Dict[str,object])->int:
         original_action_direction_id = action_dict['directional_action']
         original_action_sentence = action_dict['communication_channel']
-        import ipdb; ipdb.set_trace()
         original_action_sentence_id = self.sentence2sentenceId[ original_action_sentence.tostring() ]
 
         if original_action_sentence==0 and original_action_direction_id==4:
@@ -407,7 +409,10 @@ class DiscreteCombinedActionWrapper(gym.Wrapper):
 
         return encoded_action 
     
-    def step(self, action):
+    def step(self, action:List[np.ndarray]):
+        player_on_turn = self.infos[0]["current_player"].item()
+        action = action[player_on_turn]
+
         original_action = self._decode_action(action)
 
         next_observations, reward, done, next_infos = self.env.step(original_action)

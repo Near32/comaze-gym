@@ -19,7 +19,7 @@ from comaze_gym.metrics.hiddenstate_policy import HiddenStatePolicy
 
 
 class GoalOrderingPredictionMetric(object):
-    def __init__(self, hiddenstate_policy:HiddenStatePolicy, label_dim:int=5*4, data_save_path="./goal_ordering_module_save_path"):
+    def __init__(self, hiddenstate_policy:HiddenStatePolicy, label_dim:int=5*4, data_save_path="./goal_ordering_module_save_path", use_cuda=True):
         """
         
         :param hiddenstate_policy:
@@ -27,6 +27,8 @@ class GoalOrderingPredictionMetric(object):
             the inner hidden state representation of the agent.
 
         """
+        self.use_cuda = use_cuda 
+
         self.label_dim = label_dim+4*4
         self.hiddenstate_policy = hiddenstate_policy
         self.hidden_state_dim = self.hiddenstate_policy.get_hidden_state_dim()
@@ -37,6 +39,8 @@ class GoalOrderingPredictionMetric(object):
             nn.Linear(512,self.label_dim)
         ]
         self.prediction_net = nn.Sequential(*self.prediction_net)
+        
+        if self.use_cuda: self.prediction_net = self.prediction_net.cuda()
         print(self.prediction_net)
 
         self.iteration = 0 
@@ -233,6 +237,8 @@ class GoalOrderingPredictionMetric(object):
             """
             correct_pred_indices = torch.nonzero((per_actor_per_t_per_goal_acc[actor_id].sum(dim=-1)==4).float())
             # (min:0, max:timesteps x 1)
+            correct_pred_indices = correct_pred_indices.cpu()
+
             if correct_pred_indices.shape[0]>=1:
                 median_value = np.nanpercentile(
                     correct_pred_indices,
@@ -266,6 +272,8 @@ class GoalOrderingPredictionMetric(object):
 
             correct_pred_indices = torch.nonzero((per_actor_per_t_per_rule_acc[actor_id].sum(dim=-1)==4).float())
             # (min:0, max:timesteps x 1)
+            correct_pred_indices = correct_pred_indices.cpu()
+
             if correct_pred_indices.shape[0]>=1:
                 median_value = np.nanpercentile(
                     correct_pred_indices,
