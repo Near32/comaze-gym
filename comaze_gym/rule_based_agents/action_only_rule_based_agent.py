@@ -264,7 +264,7 @@ class ActionOnlyRuleBasedAgent(object):
 
 from ..utils.agent_wrappers import RuleBasedAgentWrapper
 
-def build_WrappedActionOnlyRuleBasedAgent(player_idx:int, action_space_dim:object):
+def build_WrappedActionOnlyRuleBasedAgent(player_idx:int, action_space_dim:object, seed:Optional[int]=0):
 	agent = ActionOnlyRuleBasedAgent()
 	wrapped_agent = RuleBasedAgentWrapper(
 		ruleBasedAgent=agent, 

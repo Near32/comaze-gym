@@ -18,7 +18,7 @@ idx2GoalColor = dict(zip(goalColor2idx.values(), goalColor2idx.keys()))
 
 # Adapted from ? and Marie Ossenkopf:
 class CommunicatingRuleBasedAgent(object):
-    def __init__(self):
+    def __init__(self, seed=0):
         self.directions = [
             Direction('UP', 'DOWN', 0, -1),
             Direction('DOWN', 'UP', 0, 1),
@@ -32,6 +32,13 @@ class CommunicatingRuleBasedAgent(object):
             "BLUE":2, 
             "GREEN":3
         }
+        
+        self.seed = seed
+        self.random_state = np.random.RandomState(seed=self.seed)
+        self.indices = np.arange(4)
+        self.random_state.shuffle(self.indices)
+        self.goalColor2idx = dict(zip(goalColor2idx.keys(), self.indices))
+        self.idx2GoalColor = dict(zip(self.goalColor2idx.values(), self.goalColor2idx.keys()))
 
         self.reset()
 
@@ -267,8 +274,8 @@ class CommunicatingRuleBasedAgent(object):
     def encode_secret_goal_rule(self, player: Player):
         secret_goal_rule = player.secretGoalRule
         secret_goal_rule_idx = [
-            goalColor2idx[secret_goal_rule.earlierGoal.color],
-            goalColor2idx[secret_goal_rule.laterGoal.color],
+            self.goalColor2idx[secret_goal_rule.earlierGoal.color],
+            self.goalColor2idx[secret_goal_rule.laterGoal.color],
         ]
         self.secret_goal_rule_message = 4*secret_goal_rule_idx[0]+secret_goal_rule_idx[1]
         return self.secret_goal_rule_message
@@ -279,8 +286,8 @@ class CommunicatingRuleBasedAgent(object):
 
         earlierGoal_idx = secret_goal_rule_message//4
         laterGoal_idx = secret_goal_rule_message%4
-        earlierGoal_color = idx2GoalColor[earlierGoal_idx]
-        laterGoal_color = idx2GoalColor[laterGoal_idx]
+        earlierGoal_color = self.idx2GoalColor[earlierGoal_idx]
+        laterGoal_color = self.idx2GoalColor[laterGoal_idx]
         self.other_secret_goal_rule_colors = [earlierGoal_color, laterGoal_color]
         return self.other_secret_goal_rule_colors
 
@@ -341,8 +348,8 @@ class CommunicatingRuleBasedAgent(object):
 
 from ..utils.agent_wrappers import RuleBasedAgentWrapper
 
-def build_WrappedCommunicatingRuleBasedAgent(player_idx:int, action_space_dim:object):
-	agent = CommunicatingRuleBasedAgent()
+def build_WrappedCommunicatingRuleBasedAgent(player_idx:int, action_space_dim:object, seed:Optional[int]=0):
+	agent = CommunicatingRuleBasedAgent(seed=seed)
 	wrapped_agent = RuleBasedAgentWrapper(
 		ruleBasedAgent=agent, 
 		player_idx=player_idx, 
