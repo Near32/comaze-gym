@@ -36,7 +36,8 @@ class CommunicatingRuleBasedAgent(object):
         self.seed = seed
         self.random_state = np.random.RandomState(seed=self.seed)
         self.indices = np.arange(4)
-        self.random_state.shuffle(self.indices)
+        if self.seed!=1:
+            self.random_state.shuffle(self.indices)
         self.goalColor2idx = dict(zip(goalColor2idx.keys(), self.indices))
         self.idx2GoalColor = dict(zip(self.goalColor2idx.values(), self.goalColor2idx.keys()))
 
@@ -286,6 +287,11 @@ class CommunicatingRuleBasedAgent(object):
 
         earlierGoal_idx = secret_goal_rule_message//4
         laterGoal_idx = secret_goal_rule_message%4
+        
+        # Making sure that it is readable:
+        earlierGoal_idx = earlierGoal_idx%4
+        laterGoal_idx = laterGoal_idx%4
+        
         earlierGoal_color = self.idx2GoalColor[earlierGoal_idx]
         laterGoal_color = self.idx2GoalColor[laterGoal_idx]
         self.other_secret_goal_rule_colors = [earlierGoal_color, laterGoal_color]

@@ -232,14 +232,14 @@ class ActionOnlyRuleBasedAgent(object):
             if self.toxic_field is not None:
                 # Don't calculate path that go over our toxic field
                 if new_x == self.toxic_field.position.x and new_y == self.toxic_field.position.y: continue
-                if new_x == self.toxic_field.position.x-1 and new_y == self.toxic_field.position.y: continue
-                if new_x == self.toxic_field.position.x-1 and new_y == self.toxic_field.position.y-1: continue
-                if new_x == self.toxic_field.position.x-1 and new_y == self.toxic_field.position.y+1: continue
-                if new_x == self.toxic_field.position.x+1 and new_y == self.toxic_field.position.y: continue
-                if new_x == self.toxic_field.position.x+1 and new_y == self.toxic_field.position.y-1: continue
-                if new_x == self.toxic_field.position.x+1 and new_y == self.toxic_field.position.y+1: continue
-                if new_x == self.toxic_field.position.x and new_y == self.toxic_field.position.y-1: continue
-                if new_x == self.toxic_field.position.x and new_y == self.toxic_field.position.y+1: continue
+                #if new_x == self.toxic_field.position.x-1 and new_y == self.toxic_field.position.y: continue
+                #if new_x == self.toxic_field.position.x-1 and new_y == self.toxic_field.position.y-1: continue
+                #if new_x == self.toxic_field.position.x-1 and new_y == self.toxic_field.position.y+1: continue
+                #if new_x == self.toxic_field.position.x+1 and new_y == self.toxic_field.position.y: continue
+                #if new_x == self.toxic_field.position.x+1 and new_y == self.toxic_field.position.y-1: continue
+                #if new_x == self.toxic_field.position.x+1 and new_y == self.toxic_field.position.y+1: continue
+                #if new_x == self.toxic_field.position.x and new_y == self.toxic_field.position.y-1: continue
+                #if new_x == self.toxic_field.position.x and new_y == self.toxic_field.position.y+1: continue
         
             neighbors.append(new_point)
 

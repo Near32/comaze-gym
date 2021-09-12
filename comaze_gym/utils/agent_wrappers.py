@@ -61,7 +61,7 @@ class RuleBasedAgentWrapper(object):
     def parameters(self):
         return []
 
-    def set_nbr_actor(self, nbr_actors:int):
+    def set_nbr_actor(self, nbr_actors:int, vdn:Optional[bool]=None, training:Optional[bool]=None):
         self.nbr_actors = nbr_actors
         self.reset_actors()
 
