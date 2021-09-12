@@ -55,6 +55,7 @@ class MessageTrajectoryMutualInformationMetric(object):
         
         pi_bar_m = 0.0
         nbr_samples = 0
+        nbr_eff_samples = 0
 
         for actor_id in range(batch_size):
             message_policy.reset(1)
@@ -64,7 +65,8 @@ class MessageTrajectoryMutualInformationMetric(object):
                 eff_mask = torch.ones((batch_size, T))
             else:
                 eff_mask = mask 
-
+            
+            nbr_eff_timesteps = 0
             for t in range(T):
                 m = eff_mask[actor_id][t] 
                 
@@ -76,10 +78,12 @@ class MessageTrajectoryMutualInformationMetric(object):
                 pi_bar_m += m*pt
                 # 1 x message_space_dim
                 nbr_samples += pt.shape[0]
+                nbr_eff_samples += m*pt.shape[0]
+                nbr_eff_timesteps += m
 
                 ent_pt = -torch.sum(pt*log_pt, dim=-1, keepdim=True)
                 # 1 x 1
-                ent_pi_m_x_it.append(ent_pt)
+                ent_pi_m_x_it.append(m*ent_pt)
 
                 if self.target_ent_pt is None:
                     self.target_ent_pt = 0.5*torch.log(pt.shape[-1]*torch.ones(1)).to(pt.device).detach()
@@ -92,10 +96,10 @@ class MessageTrajectoryMutualInformationMetric(object):
                 # batch_size
             
             # normalising:
-            L_ps[actor_id:actor_id+1] /= T 
+            L_ps[actor_id:actor_id+1] /= nbr_eff_timesteps
 
         # normalization:
-        pi_bar_m = pi_bar_m/nbr_samples
+        pi_bar_m = pi_bar_m/nbr_eff_samples
         #pi_bar_m = pi_bar_m.softmax(dim=-1)
         log_pi_bar_m = pi_bar_m.log()
         # 1 x message_space_dim
@@ -106,16 +110,25 @@ class MessageTrajectoryMutualInformationMetric(object):
         # Mutual information between agent's messages and trajectories:
         ent_pi_m_x_it = torch.cat(ent_pi_m_x_it, dim=-1)
         # (1 x nbr_samples)
-        exp_ent_pi_m_x_it_over_x_it = ent_pi_m_x_it.mean(dim=-1, keepdim=True)
+        # WATCHOUT: nbr_samples is probably different from nbr_eff_samples... 
+        # Thus, averaging requires division over nbr_eff_samples, not mean fn:
+        exp_ent_pi_m_x_it_over_x_it = ent_pi_m_x_it.sum(dim=-1, keepdim=True)/nbr_eff_samples
         # (1 x 1 )
 
         # Loss is minimized when averaged policy's entropy is maximized:
-        #L_ps = L_ps-nbr_samples*ent_pi_bar_m.reshape(-1)
+        L_ps_ent_term = L_ps
         L_ps = L_ps-ent_pi_bar_m.reshape(-1)
         # batch_size 
 
         if biasing:
             self.message_policy.reset(nbr_actors, training=True)
             self.message_policy.restore_inner_state()
-
-        return L_ps, ent_pi_bar_m, exp_ent_pi_m_x_it_over_x_it
+        
+        rd = {
+            "L_ps":L_ps,
+            "L_ps_EntTerm": L_ps_ent_term,
+            "ent_pi_bar_m": ent_pi_bar_m,
+            "exp_ent_pi_m_x_it_over_x_it": exp_ent_pi_m_x_it_over_x_it,
+        }
+        
+        return rd
