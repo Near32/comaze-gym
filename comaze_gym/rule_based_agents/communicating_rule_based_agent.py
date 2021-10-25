@@ -39,7 +39,7 @@ class CommunicatingRuleBasedAgent(object):
         if self.seed!=1:
             self.random_state.shuffle(self.indices)
         self.goalColor2idx = dict(zip(goalColor2idx.keys(), self.indices))
-        self.idx2GoalColor = dict(zip(self.goalColor2idx.values(), self.goalColor2idx.keys()))
+        self.idx2GoalColor = dict(zip(self.indices, self.goalColor2idx.keys()))
 
         self.reset()
 
@@ -183,21 +183,32 @@ class CommunicatingRuleBasedAgent(object):
         self.last_goals_unreached = game.unreachedGoals
 
         path_to_goal = paths_to_goals[0]  # default
+        """
+        BUG:
+        When two shortest pathes to goals have the same number of steps,
+        it is possible that the one being selected by this agent requires
+        an action that it cannot perform, and similarly for the other agent.
+        Thus, they end up in a stalemate where they both wait for the other
+        agent to take the action they would hope/predict the other to take.
+        Using the suspect_toxic attribute allows the agent to try to escape
+        the stalemate by itself.
+        """
+
         for path in paths_to_goals:
             # Don't go to suspect toxic path
-            """
+            ## 
             if self.is_path_to_goal(path, self.suspect_toxic):
                 continue
-            """
+            ##
             if self.known_toxic_field is not None \
             and self.is_path_to_goal(path, self.known_toxic_field):
                 continue
             # Set new toxic suspect if we visited the same field twice
-            """
+            ##
             if path == self.last_followed_path:
                 self.suspect_toxic = path[-1]
                 continue
-            """
+            ##
             path_to_goal = path
             break
 
@@ -236,7 +247,7 @@ class CommunicatingRuleBasedAgent(object):
         return move 
 
     # -------------Helper Functions--------------
-
+   
     def get_hidden_state(self):
         """
         returns a hidden state consisting of:

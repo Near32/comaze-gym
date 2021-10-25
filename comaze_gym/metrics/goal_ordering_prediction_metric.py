@@ -107,11 +107,28 @@ class GoalOrderingPredictionMetric(object):
         dataframe_dict = {
             'actor_id': [],
             'timestep': [],
+            'trajectory_length': [],
+            'goal1_label': [],
+            'goal2_label': [],
+            'goal3_label': [],
+            'goal4_label': [],
+            'goal1_pred': [],
+            'goal2_pred': [],
+            'goal3_pred': [],
+            'goal4_pred': [],
             'goal1_pred_acc': [],
             'goal2_pred_acc': [],
             'goal3_pred_acc': [],
             'goal4_pred_acc': [],
             'Goal Prediction Accuracy': [],
+            'rule1_label': [],
+            'rule2_label': [],
+            'rule3_label': [],
+            'rule4_label': [],
+            'rule1_pred': [],
+            'rule2_pred': [],
+            'rule3_pred': [],
+            'rule4_pred': [],
             'rule1_pred_acc': [],
             'rule2_pred_acc': [],
             'rule3_pred_acc': [],
@@ -198,21 +215,36 @@ class GoalOrderingPredictionMetric(object):
 
                 dataframe_dict['actor_id'].append(actor_id)
                 dataframe_dict['timestep'].append(t)
-                dataframe_dict['goal1_pred_acc'].append(per_goal_acc_t[..., 0].item())
-                dataframe_dict['goal2_pred_acc'].append(per_goal_acc_t[..., 1].item())
-                dataframe_dict['goal3_pred_acc'].append(per_goal_acc_t[..., 2].item())
-                dataframe_dict['goal4_pred_acc'].append(per_goal_acc_t[..., 3].item())
+                dataframe_dict['goal1_label'].append(labels[..., 0].item())
+                dataframe_dict['goal2_label'].append(labels[..., 1].item())
+                dataframe_dict['goal3_label'].append(labels[..., 2].item())
+                dataframe_dict['goal4_label'].append(labels[..., 3].item())
+                dataframe_dict['goal1_pred'].append(pred_goals[..., 0].item())
+                dataframe_dict['goal2_pred'].append(pred_goals[..., 1].item())
+                dataframe_dict['goal3_pred'].append(pred_goals[..., 2].item())
+                dataframe_dict['goal4_pred'].append(pred_goals[..., 3].item())
                 dataframe_dict['Goal Prediction Accuracy'].append((per_goal_acc_t.sum()==4).float().item()*100.0)
+                dataframe_dict['rule1_label'].append(rules_labels[..., 0].item())
+                dataframe_dict['rule2_label'].append(rules_labels[..., 1].item())
+                dataframe_dict['rule3_label'].append(rules_labels[..., 2].item())
+                dataframe_dict['rule4_label'].append(rules_labels[..., 3].item())
+                dataframe_dict['rule1_pred'].append(pred_goals_rules[..., 0].item())
+                dataframe_dict['rule2_pred'].append(pred_goals_rules[..., 1].item())
+                dataframe_dict['rule3_pred'].append(pred_goals_rules[..., 2].item())
+                dataframe_dict['rule4_pred'].append(pred_goals_rules[..., 3].item())
                 dataframe_dict['rule1_pred_acc'].append(per_rule_acc_t[..., 0].item())
                 dataframe_dict['rule2_pred_acc'].append(per_rule_acc_t[..., 1].item())
                 dataframe_dict['rule3_pred_acc'].append(per_rule_acc_t[..., 2].item())
                 dataframe_dict['rule4_pred_acc'].append(per_rule_acc_t[..., 3].item())
                 dataframe_dict['Secret Goal Rule Prediction Accuracy'].append((per_rule_acc_t.sum()==4).float().item()*100.0)
-
+            
+            traj_length = t
+            dataframe_dict['trajectory_length'] = len(dataframe_dict['timestep'])*[traj_length]
             while t<100:
                 t+=1
                 dataframe_dict['actor_id'].append(actor_id)
                 dataframe_dict['timestep'].append(t)
+                dataframe_dict['trajectory_length'].append(traj_length)
                 dataframe_dict['goal1_pred_acc'].append(per_goal_acc_t[..., 0].item())
                 dataframe_dict['goal2_pred_acc'].append(per_goal_acc_t[..., 1].item())
                 dataframe_dict['goal3_pred_acc'].append(per_goal_acc_t[..., 2].item())
