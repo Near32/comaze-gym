@@ -25,7 +25,7 @@ setup(
     zip_safe=False,
 
     install_requires=[
-      'gym',
+      'gym==0.23.1',
       'gym-minigrid',
       #'opencv',
       'astar',

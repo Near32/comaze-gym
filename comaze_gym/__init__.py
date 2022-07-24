@@ -5,7 +5,7 @@ from .rule_based_agents import *
 import gym
 from gym.envs.registration import register
 
-env_dict = gym.envs.registration.registry.env_specs.copy()
+env_dict = gym.envs.registration.registry.env_specs
 
 for env in env_dict:
     if 'CoMaze' in env:
